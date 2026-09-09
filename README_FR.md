@@ -82,6 +82,9 @@ Toujours répéter d'abord (`-WhatIf`). Le pré-contrôle s'exécute même en dr
 
 ## 2. Créer le cluster (une fois, depuis un nœud)
 
+Planifiez les disques avec le calculateur hébergé (mêmes maths que le module) :
+https://jmaillot.github.io/deploy-s2d-v2/
+
 ```powershell
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV_S2D" -SizingMode "Auto"
 ```

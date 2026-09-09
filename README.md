@@ -77,6 +77,9 @@ Always dry-run first: append `-WhatIf` (preflight still executes — that's the 
 
 ## 2. Create the cluster (once, from either node)
 
+Plan disks first with the hosted calculator (same math as the module):
+https://jmaillot.github.io/deploy-s2d-v2/
+
 ```powershell
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV_S2D" -SizingMode "Auto"
 ```
