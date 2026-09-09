@@ -114,9 +114,9 @@ Describe 'Cluster volumes Auto NestedParity x2 mixed tiers (mocked)' {
         $calls = Get-VolumeCapture
         $calls.Count | Should -Be 2
         $calls[0].FriendlyName | Should -Be 'CSV_01'
-        $calls[0].StorageTierFriendlyNames | Should -Be @('NestedMirrorOnSSD', 'NestedParityOnSSD')
+        $calls[0].StorageTierFriendlyNames -join ',' | Should -Be 'NestedMirrorOnSSD,NestedParityOnSSD'
         $calls[1].FriendlyName | Should -Be 'CSV_02'
-        $calls[1].StorageTierFriendlyNames | Should -Be @('NestedMirrorOnHDD', 'NestedParityOnHDD')
+        $calls[1].StorageTierFriendlyNames -join ',' | Should -Be 'NestedMirrorOnHDD,NestedParityOnHDD'
         $calls[0].Size | Should -BeGreaterThan 4.5TB
         $calls[0].Size | Should -BeLessThan 5TB
         $calls[0].Size | Should -Be $calls[1].Size
