@@ -22,14 +22,14 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/configure-pages@v6
       - name: Stamp asset versions (defeats stale HTML/JS mixes)
         run: |
           V="${GITHUB_SHA::7}"
           sed -i -E "s/(calculator\.js\?v=)[0-9a-f]+/\1$V/; s/(styles\.css\?v=)[0-9a-f]+/\1$V/" s2dcalculator/index.html
           grep -o 'calculator\.js?v=[0-9a-f]*\|styles\.css?v=[0-9a-f]*' s2dcalculator/index.html
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: s2dcalculator
       - id: deployment
