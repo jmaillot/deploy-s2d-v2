@@ -95,28 +95,59 @@ Nested volumes cannot be converted in place later — choose upfront.
 from `-VolumeName` as prefix (count 1 keeps the exact name). Use at least
 one volume per node so ownership distributes. A single `-Resiliency` /
 `-StorageTier` value broadcasts to all volumes; pass one per volume to
-mix — e.g. fast mirror on SSD plus efficient parity on SAS:
+mix (see cases below).
+
+### Which drives you have decides everything
+
+S2D automatically binds the fastest media as cache. Cache drives serve
+hot data but contribute zero usable capacity. That gives four cases:
+
+**Case A — SSD + SAS, no NVMe (single SAS tier).** The SSDs become
+read+write cache; every volume lives on SAS. You cannot create SSD
+volumes — but hot VM data is still served from SSD automatically, so
+size the cache to cover the active working set (~10% of SAS capacity:
+4x 4 TB SAS per server → 2x 800 GB SSD cache). Keep `-StorageTier` on
+`Auto` (it picks HDD); forcing `SSD` warns. The reserve floor counts
+HDD only. Example: 32 TB raw SAS pool with an 8 TB floor (2 nodes x
+4 TB drive) → `Mirror` usable ≈ (free − 8 TB) x 50%.
+
+```powershell
+New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV_S2D" -SizingMode "Auto"
+```
+
+**Case B — NVMe + SSD + SAS (two tiers).** NVMe becomes cache; SSD and
+SAS are both capacity, so volumes can sit on either side by side (SSD
+reads come straight off SSD, SAS gets read+write cache). This is the
+layout for hot VMs on SSD and cold data on SAS — pin per volume:
 
 ```powershell
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -StorageTier SSD,HDD -Resiliency Mirror,NestedParity -SizingMode "Auto"
+# -> CSV_01: Mirror on SSD (hot VMs) | CSV_02: NestedParity on SAS (cold)
 ```
 
-**Tiers.** S2D binds the fastest media as cache, so SSD + SAS alone yields
-a single (SAS) capacity tier — hot data is still served from the SSD
-read+write cache automatically. Side-by-side SSD and SAS volumes need a
-dedicated cache tier (2x NVMe per server is enough); then `-StorageTier`
-pins volumes (`SSD` hot, `HDD` cold). `Auto` (default) picks HDD when
-present, else SSD.
+2x NVMe per server is enough (working-set sized, not capacity sized).
+The reserve floor counts one SSD plus one HDD per server.
+
+**Case C — SSD only (all-flash).** No cache tier (write-only cache is
+optional); everything is fast SSD capacity. The simplest layout:
+`-StorageTier` `Auto` picks SSD, the reserve floor counts SSD, and
+there are no pinning decisions at all.
+
+**Case D — SAS only (spinning disks, no flash).** Not a valid S2D
+configuration on its own — every server needs flash for cache (at
+least 2 SSD/NVMe cache drives next to 4+ capacity drives). Add SSDs
+(becomes case A) or NVMe (becomes case B once SSDs are present, else
+NVMe-cached HDD).
 
 **Sizing.** `Auto` (default) splits usable capacity across volumes — each
 volume gets an equal pool-footprint share times its own efficiency.
 `Fixed` needs per-volume `-VolumeSize` (e.g. `2TB`) and validates the
 summed footprint against free space. Both keep a reserve unless
-`-UseFullPool`: one capacity drive per server (up to 4; SSD+HDD only with
-NVMe/SCM cache, else HDD alone) vs. `-CapacityReservePercent` (default
-20) — larger wins. Before creating anything, the script prints usable GiB
-per resiliency option. Volumes cap at 64 TB (10 TB for VSS/Volsnap
-backups); a warning fires below 4 capacity drives per server.
+`-UseFullPool`: one capacity drive per server (up to 4, per the case
+above) vs. `-CapacityReservePercent` (default 20) — larger wins. Before
+creating anything, the script prints usable GiB per resiliency option.
+Volumes cap at 64 TB (10 TB for VSS/Volsnap backups); a warning fires
+below 4 capacity drives per server.
 
 ## 3. Validate the deployment
 

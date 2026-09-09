@@ -100,30 +100,63 @@ la capacité.
 **Volumes.** `-VolumeCount` (1-64, défaut 1) crée `Nom_01`, `Nom_02`… à
 partir de `-VolumeName` comme préfixe (1 conserve le nom exact). Au moins un
 volume par nœud pour répartir la propriété. Une seule valeur `-Resiliency` /
-`-StorageTier` s'applique à tous ; une par volume pour mixer — ex. miroir
-rapide sur SSD + parité économe sur SAS :
+`-StorageTier` s'applique à tous ; une par volume pour mixer (voir les cas
+ci-dessous).
+
+### Vos disques décident de tout
+
+S2D réserve automatiquement le média le plus rapide comme cache. Le cache
+sert les données chaudes mais n'apporte aucune capacité utile. Quatre cas :
+
+**Cas A — SSD + SAS, sans NVMe (un seul tier SAS).** Les SSD deviennent le
+cache lecture/écriture ; tous les volumes sont sur SAS. Impossible de créer
+des volumes SSD — mais les données chaudes des VM restent servies depuis le
+SSD automatiquement : dimensionnez le cache pour l'ensemble de travail
+(~10 % de la capacité SAS : 4x 4 To SAS par serveur → 2x 800 Go de cache
+SSD). Gardez `-StorageTier` sur `Auto` (prend HDD) ; forcer `SSD` avertit.
+La réserve plancher ne compte que HDD. Exemple : pool SAS brut de 32 To
+avec plancher de 8 To (2 nœuds x disque 4 To) → utile `Mirror` ≈
+(libres − 8 To) x 50 %.
+
+```powershell
+New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV_S2D" -SizingMode "Auto"
+```
+
+**Cas B — NVMe + SSD + SAS (deux tiers).** NVMe devient le cache ; SSD et
+SAS sont tous deux capacitatifs, donc les volumes peuvent se répartir des
+deux côtés (lectures SSD directes, cache lecture/écriture pour SAS). Le
+montage pour VM chaudes sur SSD et données froides sur SAS — épinglez par
+volume :
 
 ```powershell
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -StorageTier SSD,HDD -Resiliency Mirror,NestedParity -SizingMode "Auto"
+# -> CSV_01 : Mirror sur SSD (VM chaudes) | CSV_02 : NestedParity sur SAS (froid)
 ```
 
-**Tiers.** S2D réserve le média le plus rapide comme cache : SSD + SAS seuls
-= un seul tier capacitif (SAS) — les données chaudes restent servies depuis
-le cache SSD lecture/écriture automatiquement. Des volumes SSD et SAS côte à
-côte exigent un cache dédié (2x NVMe par serveur suffisent) ; `-StorageTier`
-épingle alors les volumes (`SSD` chaud, `HDD` froid). `Auto` (défaut) prend
-HDD si présent, sinon SSD.
+2x NVMe par serveur suffisent (dimensionnés pour l'ensemble de travail,
+pas pour la capacité). La réserve plancher compte un SSD plus un HDD par
+serveur.
+
+**Cas C — SSD seuls (tout-flash).** Pas de tier cache (cache écriture seule
+en option) ; tout est de la capacité SSD rapide. Le montage le plus simple :
+`-StorageTier` `Auto` prend SSD, la réserve compte SSD, aucune décision
+d'épinglage.
+
+**Cas D — SAS seuls (disques rotatifs, sans flash).** Configuration S2D
+invalide à elle seule — chaque serveur a besoin de flash pour le cache (au
+moins 2 disques cache SSD/NVMe à côté de 4+ disques capacitatifs). Ajoutez
+des SSD (devient cas A) ou du NVMe (devient cas B une fois des SSD présents,
+sinon HDD cachés par NVMe).
 
 **Dimensionnement.** `Auto` (défaut) répartit la capacité utile — chaque
 volume reçoit une part égale d'empreinte pool fois son rendement.
 `Fixed` exige `-VolumeSize` par volume (ex. `2TB`) et valide l'empreinte
 totale contre l'espace libre. Les deux gardent une réserve sauf
-`-UseFullPool` : un disque capacitif par serveur (max 4 ; SSD+HDD seulement
-avec cache NVMe/SCM, sinon HDD seul) contre `-CapacityReservePercent`
-(défaut 20) — le plus grand gagne. Avant toute création, le script affiche
-les Gio utiles par option de résilience. Volumes plafonnés à 64 To (10 To
-pour sauvegardes VSS/Volsnap) ; avertissement sous 4 disques capacitatifs
-par serveur.
+`-UseFullPool` : un disque capacitif par serveur (max 4, selon le cas
+ci-dessus) contre `-CapacityReservePercent` (défaut 20) — le plus grand
+gagne. Avant toute création, le script affiche les Gio utiles par option
+de résilience. Volumes plafonnés à 64 To (10 To pour sauvegardes
+VSS/Volsnap) ; avertissement sous 4 disques capacitatifs par serveur.
 
 ## 3. Valider le déploiement
 
