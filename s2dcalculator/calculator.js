@@ -51,6 +51,7 @@ en: {
   capDrive: "Capacity drive",
   mediaSas: "SAS spinning",
   mediaSsd: "SSD (all-flash, or capacity under NVMe cache)",
+  mediaNvme: "NVMe (all-flash)",
   driveSize: "Drive size",
   shoppingList: "Shopping list (per server)",
   yieldTB: "usable this gives (TB)",
@@ -59,6 +60,7 @@ en: {
   resultDrives: "{media} drives",
   cacheSAS: "2× SSD ≥ {size}/server (~10% of SAS)",
   cacheSSD: "None if all-flash; 2× NVMe/server if SSD capacity under NVMe cache",
+  cacheNVMe: "None if all-NVMe (optional write-only cache only for mixed endurance)",
   perfTitle: "Performance cheat sheet",
   perfNestedM: "Nested mirror (25%)", perfNestedP: "Nested parity (~35–40%)",
   perfRead: "Read latency", perfReadM: "Lowest", perfReadNM: "Lowest (any of 4 copies)", perfReadNP: "Fast recent, slower aged",
@@ -129,6 +131,7 @@ fr: {
   capDrive: "Disque capacitif",
   mediaSas: "SAS rotatifs",
   mediaSsd: "SSD (tout-flash, ou capacité sous cache NVMe)",
+  mediaNvme: "NVMe (tout-flash)",
   driveSize: "Taille disque",
   shoppingList: "Liste d'achats (par serveur)",
   yieldTB: "utile obtenue (To)",
@@ -137,6 +140,7 @@ fr: {
   resultDrives: "disques {media}",
   cacheSAS: "2× SSD ≥ {size}/serveur (~10 % du SAS)",
   cacheSSD: "Rien si tout-flash ; 2× NVMe/serveur si SSD sous cache NVMe",
+  cacheNVMe: "Rien si tout-NVMe (cache écriture seule en option selon endurance)",
   perfTitle: "Aide-mémoire performance",
   perfNestedM: "Miroir imbriqué (25 %)", perfNestedP: "Parité imbriquée (~35–40 %)",
   perfRead: "Latence lecture", perfReadM: "La plus basse", perfReadNM: "La plus basse (4 copies)", perfReadNP: "Rapide récent, plus lent vieilli",
@@ -261,7 +265,8 @@ function showMode(mode) {
 /* Mode-2 drive sizes per capacity media. */
 const NEED_SIZES = {
   SAS: [2, 4, 8, 12, 16, 20],
-  SSD: [0.8, 1.6, 1.92, 3.84, 7.68]
+  SSD: [0.8, 1.6, 1.92, 3.84, 7.68],
+  NVMe: [0.8, 1.6, 3.2, 6.4]
 };
 
 function sizeLabel(s) {
@@ -454,10 +459,12 @@ function calcNeed() {
   if (media === "SAS") {
     const cacheEach = Math.max(0.8, Math.round((found * size * 0.1) * 10) / 10);
     document.getElementById("n-cache").textContent = t("cacheSAS", { size: String(cacheEach).replace(".", LANG === "fr" ? "," : ".") + " " + unit() });
-    if (found < 4) items.push(["warn", t("warnBelow4need")]);
-  } else {
+  } else if (media === "SSD") {
     document.getElementById("n-cache").textContent = t("cacheSSD");
+  } else {
+    document.getElementById("n-cache").textContent = t("cacheNVMe");
   }
+  if (found < 4) items.push(["warn", t("warnBelow4need")]);
   if (foundUsable > 64) items.push(["warn", t("warn64need")]);
   items.push(["ok", t("tipVerify")]);
   warnList("n-warnings", items);
