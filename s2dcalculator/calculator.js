@@ -51,7 +51,7 @@ en: {
   capDrive: "Capacity drive",
   mediaSas: "SAS spinning",
   mediaSsd: "SSD (no cache)",
-  mediaSsdCached: "SSD Full Cache (capacity under NVMe cache)",
+  mediaSsdCached: "SSD Full Cache (cache included)",
   driveSize: "Drive size",
   shoppingList: "Shopping list (per server)",
   yieldTB: "usable this gives (TB)",
@@ -60,6 +60,7 @@ en: {
   resultDrives: "{media} drives",
   cacheSAS: "2× SSD ≥ {size}/server (~10% of SAS)",
   cacheSSD: "None — all-flash without cache.",
+  cacheSSDFull: "None — SSD Full Cache already covers this layout.",
   cacheNVMeReq: "2× NVMe ≥ {per}/server (≥ {total}/server, ~5% of SSD) — required, SSD is capacity here",
   perfTitle: "Performance cheat sheet",
   perfNestedM: "Nested mirror (25%)", perfNestedP: "Nested parity (~35–40%)",
@@ -131,7 +132,7 @@ fr: {
   capDrive: "Disque capacitif",
   mediaSas: "SAS rotatifs",
   mediaSsd: "SSD (sans cache)",
-  mediaSsdCached: "SSD Full Cache (capacité sous cache NVMe)",
+  mediaSsdCached: "SSD Full Cache (cache inclus)",
   driveSize: "Taille disque",
   shoppingList: "Liste d'achats (par serveur)",
   yieldTB: "utile obtenue (To)",
@@ -140,6 +141,7 @@ fr: {
   resultDrives: "disques {media}",
   cacheSAS: "2× SSD ≥ {size}/serveur (~10 % du SAS)",
   cacheSSD: "Aucun — tout-flash sans cache.",
+  cacheSSDFull: "Aucun — cache SSD Full Cache déjà en place.",
   cacheNVMeReq: "2× NVMe ≥ {per}/serveur (≥ {total}/serveur, ~5 % du SSD) — obligatoire, le SSD est capacitif ici",
   perfTitle: "Aide-mémoire performances",
   perfNestedM: "Miroir imbriqué (25 %)", perfNestedP: "Parité imbriquée (~35–40 %)",
@@ -485,8 +487,8 @@ function calcNeed() {
   if (media === "SAS") {
     const cacheEach = Math.max(0.8, Math.round((found * size * 0.1) * 10) / 10);
     document.getElementById("n-cache").textContent = t("cacheSAS", { size: sizeLabel(cacheEach) });
-  } else if (media === "SSD") {
-    document.getElementById("n-cache").textContent = t("cacheSSD");
+  } else if (media === "SSDCached") {
+    document.getElementById("n-cache").textContent = t("cacheSSDFull");
   } else {
     const needTB = found * size * 0.05;
     const per = stdPick(needTB / 2, NVME_STD);
