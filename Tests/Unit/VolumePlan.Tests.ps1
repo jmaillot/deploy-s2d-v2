@@ -69,6 +69,7 @@ Describe 'Get-S2DCapacityMedia' {
         InModuleScope Deploy-S2D {
             $ssdOnly = @([pscustomobject]@{ Size = 2TB; MediaType = 'SSD'; BusType = 'SATA' })
             @(Get-S2DCapacityMedia -Drives $ssdOnly) | Should -Be @('SSD')
+            (Get-S2DCapacityMedia -Drives $ssdOnly)[0] | Should -Be 'SSD'
             $hddOnly = @([pscustomobject]@{ Size = 4TB; MediaType = 'HDD'; BusType = 'SAS' })
             @(Get-S2DCapacityMedia -Drives $hddOnly) | Should -Be @('HDD')
         }
@@ -99,6 +100,12 @@ Describe 'Get-S2DVolumeTierMap' {
             { Get-S2DVolumeTierMap -VolumeCount 2 -StorageTier @('SSD', 'HDD', 'SSD') -DefaultMedia 'HDD' } | Should -Throw '*match VolumeCount*'
         }
     }
+
+    It 'returns an indexable array for a single volume (no scalar unroll)' {
+        InModuleScope Deploy-S2D {
+            (Get-S2DVolumeTierMap -VolumeCount 1 -StorageTier @('Auto') -DefaultMedia 'HDD')[0] | Should -Be 'HDD'
+        }
+    }
 }
 
 Describe 'Get-S2DVolumeResiliencyMap' {
@@ -117,6 +124,12 @@ Describe 'Get-S2DVolumeResiliencyMap' {
     It 'throws when the count matches neither 1 nor VolumeCount' {
         InModuleScope Deploy-S2D {
             { Get-S2DVolumeResiliencyMap -VolumeCount 2 -Resiliency @('Mirror', 'NestedParity', 'Mirror') } | Should -Throw '*match VolumeCount*'
+        }
+    }
+
+    It 'returns an indexable array for a single volume (no scalar unroll)' {
+        InModuleScope Deploy-S2D {
+            (Get-S2DVolumeResiliencyMap -VolumeCount 1 -Resiliency @('Mirror'))[0] | Should -Be 'Mirror'
         }
     }
 }

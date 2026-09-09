@@ -101,7 +101,7 @@ Describe 'Cluster volumes Auto NestedParity x2 mixed tiers (mocked)' {
             $Parameters.FriendlyName -eq 'CSV_02' -and $Parameters.StorageTierFriendlyNames -contains 'NestedMirrorOnHDD' -and $Parameters.StorageTierFriendlyNames -contains 'NestedParityOnHDD'
         }
         Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 2 -Exactly -ParameterFilter {
-            $Parameters.Size -gt 5TB -and $Parameters.Size -lt 5.5TB -and ($Parameters.StorageTierSizes[0] + $Parameters.StorageTierSizes[1]) -eq $Parameters.Size
+            $Parameters.Size -gt 4.5TB -and $Parameters.Size -lt 5TB -and ($Parameters.StorageTierSizes[0] + $Parameters.StorageTierSizes[1]) -eq $Parameters.Size
         }
     }
 

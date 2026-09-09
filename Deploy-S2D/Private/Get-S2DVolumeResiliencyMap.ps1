@@ -24,10 +24,10 @@ One resiliency per volume, or a single resiliency broadcast to all.
     if ($Resiliency.Count -eq 1) {
         $map = @()
         for ($i = 0; $i -lt $VolumeCount; $i++) { $map += $Resiliency[0] }
-        return $map
+        return ,$map
     }
     if ($Resiliency.Count -eq $VolumeCount) {
-        return @($Resiliency)
+        return ,@($Resiliency)
     }
     throw "Resiliency count ($($Resiliency.Count)) must be 1 or match VolumeCount ($VolumeCount)."
 }

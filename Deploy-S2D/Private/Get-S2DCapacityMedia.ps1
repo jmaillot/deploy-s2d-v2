@@ -25,9 +25,9 @@ Drive objects with MediaType and BusType properties
     if ($hasHdd -and $hasSsd) {
         $hasDedicatedCache = @($Drives | Where-Object { $_.MediaType -eq 'SCM' -or $_.BusType -eq 'NVMe' }).Count -gt 0
         if ($hasDedicatedCache) { return @('SSD', 'HDD') }
-        return @('HDD')
+        return ,@('HDD')
     }
-    if ($hasHdd) { return @('HDD') }
-    if ($hasSsd) { return @('SSD') }
-    return @($mediaTypes)
+    if ($hasHdd) { return ,@('HDD') }
+    if ($hasSsd) { return ,@('SSD') }
+    return ,@($mediaTypes)
 }

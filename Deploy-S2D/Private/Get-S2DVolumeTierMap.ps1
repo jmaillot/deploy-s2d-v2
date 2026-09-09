@@ -32,5 +32,6 @@ Capacity media used for "Auto" entries.
     } else {
         throw "StorageTier count ($($StorageTier.Count)) must be 1 or match VolumeCount ($VolumeCount)."
     }
-    return @($raw | ForEach-Object { if ($_ -eq "Auto") { $DefaultMedia } else { $_ } })
+    $mapped = @($raw | ForEach-Object { if ($_ -eq "Auto") { $DefaultMedia } else { $_ } })
+    return ,$mapped
 }
