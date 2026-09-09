@@ -33,20 +33,20 @@
           <input type="number" id="g-nodes" value="2" min="2" max="16" step="1">
         </label>
         <label><span data-i18n="resiliency"></span>
-          <select id="g-res">
+          <select id="g-res" onchange="refreshCommand()">
             <option value="Mirror" data-i18n="resM"></option>
             <option value="NestedMirror" data-i18n="resNM"></option>
             <option value="NestedParity" data-i18n="resNP"></option>
           </select>
         </label>
         <label><span data-i18n="mirrorShare"></span>: <span id="g-mirrorpct-val">20</span>%
-          <input type="range" id="g-mirrorpct" value="20" min="10" max="30" step="1" oninput="document.getElementById('g-mirrorpct-val').textContent=this.value">
+          <input type="range" id="g-mirrorpct" value="20" min="10" max="30" step="1" oninput="document.getElementById('g-mirrorpct-val').textContent=this.value;refreshCommand()">
         </label>
         <label><span data-i18n="reservePct"></span>
-          <input type="number" id="g-reservepct" value="20" min="0" max="100" step="1">
+          <input type="number" id="g-reservepct" value="20" min="0" max="100" step="1" oninput="refreshCommand()">
         </label>
         <label><span data-i18n="volumes"></span>
-          <input type="number" id="g-vols" value="2" min="1" max="64" step="1">
+          <input type="number" id="g-vols" value="2" min="1" max="64" step="1" oninput="refreshCommand()">
         </label>
       </div>
 
