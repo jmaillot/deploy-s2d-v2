@@ -29,7 +29,7 @@ Describe 'Get-S2DVolumeEfficiency' {
 
 Describe 'Get-S2DCapacityMedia' {
     It 'returns empty when drives are unknown' {
-        Get-S2DCapacityMedia -Drives @() | Should -Be @()
+        @(Get-S2DCapacityMedia -Drives @()).Count | Should -Be 0
     }
 
     It 'treats SSD as cache with SSD plus SAS HDD only' {
@@ -37,7 +37,7 @@ Describe 'Get-S2DCapacityMedia' {
             [pscustomobject]@{ Size = 800GB; MediaType = 'SSD'; BusType = 'SATA' }
             [pscustomobject]@{ Size = 4TB; MediaType = 'HDD'; BusType = 'SAS' }
         )
-        Get-S2DCapacityMedia -Drives $drives | Should -Be @('HDD')
+        @(Get-S2DCapacityMedia -Drives $drives) | Should -Be @('HDD')
     }
 
     It 'promotes SSD to capacity with an NVMe cache tier' {
@@ -46,28 +46,28 @@ Describe 'Get-S2DCapacityMedia' {
             [pscustomobject]@{ Size = 800GB; MediaType = 'SSD'; BusType = 'SATA' }
             [pscustomobject]@{ Size = 4TB; MediaType = 'HDD'; BusType = 'SAS' }
         )
-        Get-S2DCapacityMedia -Drives $drives | Should -Be @('SSD', 'HDD')
+        @(Get-S2DCapacityMedia -Drives $drives) | Should -Be @('SSD', 'HDD')
     }
 
     It 'handles single-media pools' {
         $ssdOnly = @([pscustomobject]@{ Size = 2TB; MediaType = 'SSD'; BusType = 'SATA' })
-        Get-S2DCapacityMedia -Drives $ssdOnly | Should -Be @('SSD')
+        @(Get-S2DCapacityMedia -Drives $ssdOnly) | Should -Be @('SSD')
         $hddOnly = @([pscustomobject]@{ Size = 4TB; MediaType = 'HDD'; BusType = 'SAS' })
-        Get-S2DCapacityMedia -Drives $hddOnly | Should -Be @('HDD')
+        @(Get-S2DCapacityMedia -Drives $hddOnly) | Should -Be @('HDD')
     }
 }
 
 Describe 'Get-S2DVolumeTierMap' {
     It 'broadcasts a single tier to all volumes' {
-        Get-S2DVolumeTierMap -VolumeCount 2 -StorageTier @('Auto') -DefaultMedia 'HDD' | Should -Be @('HDD', 'HDD')
+        @(Get-S2DVolumeTierMap -VolumeCount 2 -StorageTier @('Auto') -DefaultMedia 'HDD') | Should -Be @('HDD', 'HDD')
     }
 
     It 'maps one tier per volume' {
-        Get-S2DVolumeTierMap -VolumeCount 2 -StorageTier @('SSD', 'HDD') -DefaultMedia 'HDD' | Should -Be @('SSD', 'HDD')
+        @(Get-S2DVolumeTierMap -VolumeCount 2 -StorageTier @('SSD', 'HDD') -DefaultMedia 'HDD') | Should -Be @('SSD', 'HDD')
     }
 
     It 'resolves Auto entries to the default media' {
-        Get-S2DVolumeTierMap -VolumeCount 2 -StorageTier @('SSD', 'Auto') -DefaultMedia 'HDD' | Should -Be @('SSD', 'HDD')
+        @(Get-S2DVolumeTierMap -VolumeCount 2 -StorageTier @('SSD', 'Auto') -DefaultMedia 'HDD') | Should -Be @('SSD', 'HDD')
     }
 
     It 'throws when the count matches neither 1 nor VolumeCount' {
@@ -77,11 +77,11 @@ Describe 'Get-S2DVolumeTierMap' {
 
 Describe 'Get-S2DVolumeResiliencyMap' {
     It 'broadcasts a single resiliency to all volumes' {
-        Get-S2DVolumeResiliencyMap -VolumeCount 2 -Resiliency @('Mirror') | Should -Be @('Mirror', 'Mirror')
+        @(Get-S2DVolumeResiliencyMap -VolumeCount 2 -Resiliency @('Mirror')) | Should -Be @('Mirror', 'Mirror')
     }
 
     It 'maps one resiliency per volume' {
-        Get-S2DVolumeResiliencyMap -VolumeCount 2 -Resiliency @('Mirror', 'NestedParity') | Should -Be @('Mirror', 'NestedParity')
+        @(Get-S2DVolumeResiliencyMap -VolumeCount 2 -Resiliency @('Mirror', 'NestedParity')) | Should -Be @('Mirror', 'NestedParity')
     }
 
     It 'throws when the count matches neither 1 nor VolumeCount' {
