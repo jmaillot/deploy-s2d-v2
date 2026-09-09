@@ -52,7 +52,7 @@ Describe 'Parameter contracts' {
         $params['NestedMirrorPercent'].Attributes.Where({ $_ -is [System.Management.Automation.ValidateRangeAttribute] }).MinRange | Should -Be 10
         $params['StorageTier'].Attributes.Where({ $_ -is [System.Management.Automation.ValidateSetAttribute] }).ValidValues | Should -Be @('Auto', 'SSD', 'HDD')
         $params['VolumeCount'].ParameterType | Should -Be ([int])
-        $params['Resiliency'].ParameterType | Should -Be ([string])
+        $params['Resiliency'].ParameterType | Should -Be ([string[]])
         $params['NestedMirrorPercent'].ParameterType | Should -Be ([int])
         $params['StorageTier'].ParameterType | Should -Be ([string[]])
     }

@@ -75,6 +75,20 @@ Describe 'Get-S2DVolumeTierMap' {
     }
 }
 
+Describe 'Get-S2DVolumeResiliencyMap' {
+    It 'broadcasts a single resiliency to all volumes' {
+        Get-S2DVolumeResiliencyMap -VolumeCount 2 -Resiliency @('Mirror') | Should -Be @('Mirror', 'Mirror')
+    }
+
+    It 'maps one resiliency per volume' {
+        Get-S2DVolumeResiliencyMap -VolumeCount 2 -Resiliency @('Mirror', 'NestedParity') | Should -Be @('Mirror', 'NestedParity')
+    }
+
+    It 'throws when the count matches neither 1 nor VolumeCount' {
+        { Get-S2DVolumeResiliencyMap -VolumeCount 2 -Resiliency @('Mirror', 'NestedParity', 'Mirror') } | Should -Throw '*match VolumeCount*'
+    }
+}
+
 Describe 'Get-S2DCapacityReserve' {
     It 'takes the drive floor on small pools (2 nodes x largest HDD)' {
         $drives = @(

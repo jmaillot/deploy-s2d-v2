@@ -41,7 +41,8 @@ CSV friendly name (prefix when VolumeCount > 1). Default CSV_S2D.
 .PARAMETER VolumeCount
 Number of CSV volumes (1-64). Default 1.
 .PARAMETER Resiliency
-Mirror (default), NestedMirror, or NestedParity.
+Mirror (default), NestedMirror, or NestedParity. A single value
+broadcasts; pass one per volume to mix.
 .PARAMETER NestedMirrorPercent
 Fast-tier mirror share for NestedParity. Default 20.
 .PARAMETER StorageTier
@@ -89,7 +90,7 @@ Start-S2DDeployment -ClusterName "CL-S2D" -ClusterNodes "S2D-01","S2D-02" -Clust
         [string]$VolumeName = "CSV_S2D",
         [int]$VolumeCount = 1,
         [ValidateSet("Mirror","NestedMirror","NestedParity")]
-        [string]$Resiliency = "Mirror",
+        [string[]]$Resiliency = @("Mirror"),
         [int]$NestedMirrorPercent = 20,
         [ValidateSet("Auto","SSD","HDD")]
         [string[]]$StorageTier = @("Auto"),

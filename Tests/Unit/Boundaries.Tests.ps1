@@ -27,6 +27,11 @@ Describe 'New-S2DCluster boundaries' {
         { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -VolumeCount 2 -StorageTier SSD,HDD,SSD -ErrorAction Stop } |
             Should -Throw '*match VolumeCount*'
     }
+
+    It 'throws when Resiliency count matches neither 1 nor VolumeCount' {
+        { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -VolumeCount 2 -Resiliency Mirror,NestedParity,Mirror -ErrorAction Stop } |
+            Should -Throw '*match VolumeCount*'
+    }
 }
 
 Describe 'Start-S2DNodePrep boundaries' {

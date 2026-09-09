@@ -11,6 +11,9 @@
   volume (`-VolumeCount 2 -StorageTier SSD,HDD` pins hot to SSD, cold to
   SAS/HDD; needs NVMe/SCM cache for both side by side). Pinned Mirror
   volumes use an auto-created MirrorOn tier template
+- Per-volume resiliency: single `-Resiliency` broadcasts, or one per
+  volume (`Mirror,NestedParity`); Auto sizing gives each volume an equal
+  pool-footprint share times its own efficiency
 - Drive-based reserve floor (1 capacity drive/server up to 4; SSD+HDD only
   with a dedicated NVMe/SCM cache tier, else HDD alone for SSD+SAS pools);
   larger of floor and `-CapacityReservePercent` wins. Drive counts and
