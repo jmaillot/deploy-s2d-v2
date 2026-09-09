@@ -27,26 +27,65 @@ Describe 'Get-S2DVolumeEfficiency' {
     }
 }
 
+Describe 'Get-S2DCapacityMedia' {
+    It 'returns empty when drives are unknown' {
+        Get-S2DCapacityMedia -Drives @() | Should -Be @()
+    }
+
+    It 'treats SSD as cache with SSD plus SAS HDD only' {
+        $drives = @(
+            [pscustomobject]@{ Size = 800GB; MediaType = 'SSD'; BusType = 'SATA' }
+            [pscustomobject]@{ Size = 4TB; MediaType = 'HDD'; BusType = 'SAS' }
+        )
+        Get-S2DCapacityMedia -Drives $drives | Should -Be @('HDD')
+    }
+
+    It 'promotes SSD to capacity with an NVMe cache tier' {
+        $drives = @(
+            [pscustomobject]@{ Size = 800GB; MediaType = 'SSD'; BusType = 'NVMe' }
+            [pscustomobject]@{ Size = 800GB; MediaType = 'SSD'; BusType = 'SATA' }
+            [pscustomobject]@{ Size = 4TB; MediaType = 'HDD'; BusType = 'SAS' }
+        )
+        Get-S2DCapacityMedia -Drives $drives | Should -Be @('SSD', 'HDD')
+    }
+
+    It 'handles single-media pools' {
+        $ssdOnly = @([pscustomobject]@{ Size = 2TB; MediaType = 'SSD'; BusType = 'SATA' })
+        Get-S2DCapacityMedia -Drives $ssdOnly | Should -Be @('SSD')
+        $hddOnly = @([pscustomobject]@{ Size = 4TB; MediaType = 'HDD'; BusType = 'SAS' })
+        Get-S2DCapacityMedia -Drives $hddOnly | Should -Be @('HDD')
+    }
+}
+
 Describe 'Get-S2DCapacityReserve' {
     It 'takes the drive floor on small pools (2 nodes x largest HDD)' {
         $drives = @(
-            [pscustomobject]@{ Size = 2TB; MediaType = 'HDD' }
-            [pscustomobject]@{ Size = 2TB; MediaType = 'HDD' }
-            [pscustomobject]@{ Size = 2TB; MediaType = 'HDD' }
-            [pscustomobject]@{ Size = 2TB; MediaType = 'HDD' }
+            [pscustomobject]@{ Size = 2TB; MediaType = 'HDD'; BusType = 'SAS' }
+            [pscustomobject]@{ Size = 2TB; MediaType = 'HDD'; BusType = 'SAS' }
+            [pscustomobject]@{ Size = 2TB; MediaType = 'HDD'; BusType = 'SAS' }
+            [pscustomobject]@{ Size = 2TB; MediaType = 'HDD'; BusType = 'SAS' }
         )
         Get-S2DCapacityReserve -PoolFreeBytes 10TB -NodeCount 2 -ReservePercent 20 -Drives $drives | Should -Be 4TB
     }
 
     It 'takes the percent reserve on large pools' {
-        $drives = @([pscustomobject]@{ Size = 2TB; MediaType = 'HDD' })
+        $drives = @([pscustomobject]@{ Size = 2TB; MediaType = 'HDD'; BusType = 'SAS' })
         Get-S2DCapacityReserve -PoolFreeBytes 100TB -NodeCount 2 -ReservePercent 20 -Drives $drives | Should -Be 20TB
     }
 
-    It 'reserves SSD plus HDD when both capacity tiers exist' {
+    It 'reserves HDD only with SSD plus SAS and no dedicated cache' {
         $drives = @(
-            [pscustomobject]@{ Size = 800GB; MediaType = 'SSD' }
-            [pscustomobject]@{ Size = 4TB; MediaType = 'HDD' }
+            [pscustomobject]@{ Size = 800GB; MediaType = 'SSD'; BusType = 'SATA' }
+            [pscustomobject]@{ Size = 4TB; MediaType = 'HDD'; BusType = 'SAS' }
+        )
+        Get-S2DCapacityReserve -PoolFreeBytes 100TB -NodeCount 2 -ReservePercent 0 -Drives $drives | Should -Be ([uint64](2 * 4TB))
+    }
+
+    It 'reserves SSD plus HDD with an NVMe cache tier' {
+        $drives = @(
+            [pscustomobject]@{ Size = 800GB; MediaType = 'SSD'; BusType = 'NVMe' }
+            [pscustomobject]@{ Size = 800GB; MediaType = 'SSD'; BusType = 'SATA' }
+            [pscustomobject]@{ Size = 4TB; MediaType = 'HDD'; BusType = 'SAS' }
         )
         $expected = [uint64](2 * 800GB + 2 * 4TB)
         Get-S2DCapacityReserve -PoolFreeBytes 100TB -NodeCount 2 -ReservePercent 0 -Drives $drives | Should -Be $expected
@@ -57,7 +96,7 @@ Describe 'Get-S2DCapacityReserve' {
     }
 
     It 'caps the reserve at free pool bytes' {
-        $drives = @([pscustomobject]@{ Size = 8TB; MediaType = 'HDD' })
+        $drives = @([pscustomobject]@{ Size = 8TB; MediaType = 'HDD'; BusType = 'SAS' })
         Get-S2DCapacityReserve -PoolFreeBytes 4TB -NodeCount 2 -ReservePercent 20 -Drives $drives | Should -Be 4TB
     }
 }

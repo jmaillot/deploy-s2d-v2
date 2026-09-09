@@ -5,12 +5,13 @@ Pool reserve in bytes: drive-based floor vs. percent, max wins.
 .DESCRIPTION
 Pure function (no cluster access) so Pester can test it directly.
 Microsoft recommends reserving one capacity drive per server (up to 4
-drives); with SSD+HDD capacity tiers, one of each per server. The
+drives); with a dedicated cache tier (NVMe/SCM) plus SSD+HDD capacity,
+one of each per server. The
 percent reserve is kept as an override for large pools. Returns the
 larger of the two, capped at the free pool bytes.
 The drive floor is approximated from pool-wide data: reserve slots =
 min(node count, 4), times the largest drive of each capacity media
-type (HDD, SSD). NVMe-only pools fall back to the largest drive overall.
+type (see Get-S2DCapacityMedia; SSD+SAS pools count HDD only).
 .PARAMETER PoolFreeBytes
 Free pool bytes (pool Size minus AllocatedSize).
 .PARAMETER NodeCount
@@ -18,8 +19,8 @@ Cluster node count. Reserve slots = min(NodeCount, 4).
 .PARAMETER ReservePercent
 Percent of free pool held back. Range 0-100.
 .PARAMETER Drives
-Poolable drive objects with Size and MediaType properties
-(e.g. Get-S2DPoolableDisk output). Empty when unknown: percent only.
+Poolable drive objects with Size, MediaType, and BusType properties
+(e.g. Get-S2DPoolDisk output). Empty when unknown: percent only.
 #>
     [CmdletBinding()]
     [OutputType([uint64])]
@@ -35,7 +36,8 @@ Poolable drive objects with Size and MediaType properties
     $slots = [math]::Min($NodeCount, 4)
     [uint64]$floor = 0
     if ($Drives.Count -gt 0 -and $slots -gt 0) {
-        $capacityGroups = @($Drives | Where-Object { $_.MediaType -eq 'HDD' -or $_.MediaType -eq 'SSD' })
+        $capacityMedia = Get-S2DCapacityMedia -Drives $Drives
+        $capacityGroups = @($Drives | Where-Object { $_.MediaType -in $capacityMedia })
         if ($capacityGroups.Count -eq 0) {
             $capacityGroups = @($Drives)
         }

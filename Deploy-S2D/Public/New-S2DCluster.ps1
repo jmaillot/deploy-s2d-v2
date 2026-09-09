@@ -40,8 +40,10 @@ Fast-tier mirror share for NestedParity (10-30, default 20). Higher values
 favor write bursts; lower values favor capacity.
 .PARAMETER StorageTier
 Capacity media for nested tier templates. Auto (default) picks HDD when
-present, else SSD. Classic Mirror volumes are auto-placed by S2D; the cache
-(SSD/NVMe) is always configured automatically by Enable-ClusterS2D.
+present, else SSD; with SSD+HDD and no NVMe/SCM cache tier, SSD is cache
+so HDD is the only capacity tier and overriding to SSD warns. Classic
+Mirror volumes are auto-placed by S2D; the cache (SSD/NVMe) is always
+configured automatically by Enable-ClusterS2D.
 .PARAMETER VolumeSize
 Per-volume fixed size with optional suffix, e.g. 2TB, 512GB, bytes.
 Required when SizingMode is Fixed.
@@ -193,9 +195,12 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
         $pool = Get-StoragePool -FriendlyName "S2D on $ClusterName" -ErrorAction Stop
         $free = $pool.Size - $pool.AllocatedSize
         $poolDisks = @(Get-S2DPoolDisk -PoolName "S2D on $ClusterName")
-        $drivesPerServer = [math]::Max(1, [math]::Ceiling($poolDisks.Count / $ClusterNodes.Count))
+        $capacityMedia = Get-S2DCapacityMedia -Drives $poolDisks
+        $capacityDisks = @($poolDisks | Where-Object { $_.MediaType -in $capacityMedia })
+        if ($capacityDisks.Count -eq 0) { $capacityDisks = $poolDisks }
+        $drivesPerServer = [math]::Max(1, [math]::Ceiling($capacityDisks.Count / $ClusterNodes.Count))
         if ($poolDisks.Count -gt 0 -and $drivesPerServer -lt 4) {
-            Write-Warning ("Only ~{0} capacity drives per server ({1} pool disks / {2} nodes). Microsoft minimum is 4 per server; nested resiliency needs 4+." -f $drivesPerServer, $poolDisks.Count, $ClusterNodes.Count)
+            Write-Warning ("Only ~{0} capacity drives per server ({1} capacity disks / {2} nodes). Microsoft minimum is 4 per server; nested resiliency needs 4+." -f $drivesPerServer, $capacityDisks.Count, $ClusterNodes.Count)
         }
         $efficiency = Get-S2DVolumeEfficiency -Resiliency $Resiliency -CapacityDrivesPerServer $drivesPerServer -NestedMirrorPercent $NestedMirrorPercent
         $reserveBytes = [uint64]0
@@ -229,8 +234,9 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
         if ($Resiliency -ne "Mirror") {
             $tierMedia = $StorageTier
             if ($tierMedia -eq "Auto") {
-                $mediaTypes = @($poolDisks | ForEach-Object { $_.MediaType } | Select-Object -Unique)
-                $tierMedia = if ($mediaTypes -contains "HDD") { "HDD" } else { "SSD" }
+                $tierMedia = if ($capacityMedia -contains "HDD") { "HDD" } elseif ($capacityMedia.Count -gt 0) { $capacityMedia[0] } else { "SSD" }
+            } elseif ($capacityMedia.Count -gt 0 -and $tierMedia -notin $capacityMedia) {
+                Write-Warning ("StorageTier {0} is not a capacity tier here (capacity: {1}); nested tiers are still created on {0} and may fail or misbehave." -f $tierMedia, ($capacityMedia -join ", "))
             }
             $mirrorTierName = "NestedMirrorOn$TierMedia"
             $parityTierName = "NestedParityOn$TierMedia"

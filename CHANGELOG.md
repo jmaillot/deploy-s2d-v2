@@ -7,8 +7,10 @@
 - `-VolumeCount` (1-64, `-VolumeName` as prefix) so ownership distributes
   (at least 1 volume per node); `-NestedMirrorPercent` (10-30, default 20)
   and `-StorageTier Auto|SSD|HDD` for nested tier placement
-- Drive-based reserve floor (1 capacity drive/server up to 4, SSD+HDD when
-  both tiers exist); larger of floor and `-CapacityReservePercent` wins
+- Drive-based reserve floor (1 capacity drive/server up to 4; SSD+HDD only
+  with a dedicated NVMe/SCM cache tier, else HDD alone for SSD+SAS pools);
+  larger of floor and `-CapacityReservePercent` wins. Drive counts and
+  nested-parity efficiency use capacity disks only (cache SSDs excluded)
 - Fixed-mode footprint validation (size/efficiency + reserve vs. pool free)
   with 64 TB / 10 TB VSS guidance; sub-4-drives/server preflight warning
 - Verbose capacity plan printed before creation (usable GiB per resiliency)
