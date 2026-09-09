@@ -85,7 +85,7 @@ Describe 'Cluster volumes Auto Mirror (mocked)' {
         }
         $calls = Get-VolumeCapture
         $calls.Count | Should -Be 1
-        $calls[0].Size | Should -Be 12TB
+        $calls[0].StorageTierSizes[0] | Should -Be 12TB
         $calls[0].StorageTierFriendlyNames | Should -Be 'MirrorOnHDD'
     }
 }
@@ -117,10 +117,11 @@ Describe 'Cluster volumes Auto NestedParity x2 mixed tiers (mocked)' {
         $calls[0].StorageTierFriendlyNames -join ',' | Should -Be 'NestedMirrorOnSSD,NestedParityOnSSD'
         $calls[1].FriendlyName | Should -Be 'CSV_02'
         $calls[1].StorageTierFriendlyNames -join ',' | Should -Be 'NestedMirrorOnHDD,NestedParityOnHDD'
-        $calls[0].Size | Should -BeGreaterThan 4.5TB
-        $calls[0].Size | Should -BeLessThan 5TB
-        $calls[0].Size | Should -Be $calls[1].Size
-        ($calls[0].StorageTierSizes[0] + $calls[0].StorageTierSizes[1]) | Should -Be $calls[0].Size
+        $size0 = $calls[0].StorageTierSizes[0] + $calls[0].StorageTierSizes[1]
+        $size1 = $calls[1].StorageTierSizes[0] + $calls[1].StorageTierSizes[1]
+        $size0 | Should -BeGreaterThan 4.5TB
+        $size0 | Should -BeLessThan 5TB
+        $size0 | Should -Be $size1
     }
 
     It 'skips template creation when templates already exist' {
