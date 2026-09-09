@@ -94,6 +94,7 @@ input[type="number"], select {
   background: #fff;
 }
 input[type="range"] { width: 100%; }
+input[type="range"]:disabled { opacity: 0.35; }
 
 .drive-row {
   display: grid;

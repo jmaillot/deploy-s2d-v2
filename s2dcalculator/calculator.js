@@ -211,6 +211,7 @@ function applyLang() {
   document.getElementById("lang-en").classList.toggle("active", LANG === "en");
   document.getElementById("lang-fr").classList.toggle("active", LANG === "fr");
   updateNeedSizes();
+  syncMirrorSlider();
   if (!document.getElementById("g-results").hidden) calcGet();
   if (!document.getElementById("n-results").hidden) calcNeed();
 }
@@ -272,6 +273,17 @@ function showMode(mode) {
   document.getElementById("mode-need").hidden = mode !== "need";
   document.getElementById("tab-get").setAttribute("aria-selected", mode === "get");
   document.getElementById("tab-need").setAttribute("aria-selected", mode === "need");
+}
+
+/* The mirror-share slider only applies to nested parity — grey it out otherwise. */
+function syncMirrorSlider() {
+  document.getElementById("g-mirrorpct").disabled =
+    document.getElementById("g-res").value !== "NestedParity";
+}
+
+function resChanged() {
+  syncMirrorSlider();
+  refreshCommand();
 }
 
 /* Mode-2 drive sizes per capacity media. */
