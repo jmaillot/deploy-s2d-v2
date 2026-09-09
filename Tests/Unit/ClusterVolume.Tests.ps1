@@ -47,7 +47,7 @@ BeforeAll {
     }
 
     function script:Get-VolumeCapture {
-        & (Get-Module Deploy-S2D) { $script:S2DCaptureVolumes }
+        & (Get-Module Deploy-S2D) { ,$script:S2DCaptureVolumes }
     }
 }
 
