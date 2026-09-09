@@ -59,6 +59,20 @@ live-migration binding (only with `-LiveMigrationIP`, else a warning).
 | `LiveMigrationIP/Prefix` | no | Binds *the* migration network (`Add-VMMigrationNetwork`); omitted = warning |
 | `LogPath` | no | Default `C:\S2D_Deployment.log` |
 
+Examples — same step, three levels of explicitness:
+
+```powershell
+# A. Minimal: pick every NIC from the numbered console menu.
+#    Only the two storage IPs are mandatory (no picker can guess them).
+Start-S2DNodePrep -StorageAIP "192.168.200.1" -StorageBIP "192.168.201.1"
+
+# B. Full: everything named, no prompts. Run per node with its own IPs.
+Start-S2DNodePrep -MgmtAdapters "Mgmt01","Mgmt02" -VMAdapters "Vm01","Vm02" -StorageA "Storage01" -StorageB "Storage02" -LiveMigrationAdapter "Live01" -StorageAIP "192.168.200.1" -StorageBIP "192.168.201.1" -LiveMigrationIP "192.168.210.1"
+
+# C. Dry run (any variant + -WhatIf): preflight executes, nothing changes.
+Start-S2DNodePrep -StorageAIP "192.168.200.1" -StorageBIP "192.168.201.1" -WhatIf
+```
+
 Always dry-run first: append `-WhatIf` (preflight still executes — that's the point).
 
 ## 2. Create the cluster (once, from either node)
@@ -151,6 +165,36 @@ above) vs. `-CapacityReservePercent` (default 20) — larger wins. Before
 creating anything, the script prints usable GiB per resiliency option.
 Volumes cap at 64 TB (10 TB for VSS/Volsnap backups); a warning fires
 below 4 capacity drives per server.
+
+### Cluster switches at a glance
+
+| Switch | Effect |
+|---|---|
+| `-VolumeCount 2` | `CSV_01`, `CSV_02`, … (use ≥1 per node) |
+| `-Resiliency NestedParity` | All volumes survive 2 failures, ~35-40% usable |
+| `-Resiliency Mirror,NestedParity` | Per-volume mix (count must match `-VolumeCount`) |
+| `-StorageTier SSD,HDD` | Pin volumes per tier (needs NVMe cache) |
+| `-NestedMirrorPercent 30` | Bigger fast tier inside parity volumes (10-30) |
+| `-SizingMode Fixed -VolumeSize 2TB` | Exact per-volume size, footprint validated |
+| `-CapacityReservePercent 30` | Bigger % reserve (drive floor still applies) |
+| `-UseFullPool` | No reserve (post-failure repairs may stall) |
+| `-WhatIf` | Prints plan + preflight, changes nothing |
+
+Examples — pick the scenario matching your hardware:
+
+```powershell
+# A. Production, SSD+SAS: two nested volumes (one owned per node), 2-failure safety.
+New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -Resiliency NestedParity -SizingMode "Auto"
+
+# B. NVMe + SSD + SAS: hot mirror volume on SSD, efficient parity on SAS.
+New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -StorageTier SSD,HDD -Resiliency Mirror,NestedParity -SizingMode "Auto"
+
+# C. Fixed sizes: 2 TB per volume, throws if pool + reserve cannot fit it.
+New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -SizingMode "Fixed" -VolumeSize "2TB"
+
+# D. Dry run (any variant + -WhatIf): validation + capacity plan, no changes.
+New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -StorageTier SSD,HDD -Resiliency Mirror,NestedParity -SizingMode "Auto" -WhatIf
+```
 
 ## 3. Validate the deployment
 
