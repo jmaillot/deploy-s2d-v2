@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.0.0] - 2026-09-09
 ### Added
 - `-Resiliency Mirror|NestedMirror|NestedParity` on `New-S2DCluster`
   (nested survives 2 failures; cannot be converted in place later)
