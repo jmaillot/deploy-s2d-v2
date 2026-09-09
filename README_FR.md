@@ -224,6 +224,17 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -StorageTier SSD,HDD -Resiliency Mirror,NestedParity -SizingMode "Auto" -WhatIf
 ```
 
+### Références Microsoft
+
+Le module applique ces bonnes pratiques — lisez la source pour les cas limites :
+
+- [Planifier les volumes](https://learn.microsoft.com/en-us/windows-server/storage/storage-spaces/plan-volumes) — résilience par nombre de nœuds, règle de réserve, plafond 64 To
+- [Résilience imbriquée](https://learn.microsoft.com/en-us/windows-server/storage/storage-spaces/nested-resiliency) — fonctionnement des deux options, table de rendement
+- [Choisir les disques](https://learn.microsoft.com/en-us/windows-server/storage/storage-spaces/choose-drives) — quel média devient cache ou capacité, minimums
+- [Comprendre le cache](https://learn.microsoft.com/en-us/windows-server/storage/storage-spaces/cache) — comportement du cache par disposition
+- [Déployer Storage Spaces Direct](https://learn.microsoft.com/en-us/windows-server/storage/storage-spaces/deploy-storage-spaces-direct) — la séquence officielle
+- [Configuration matérielle requise](https://learn.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-direct-hardware-requirements) — minimums disques, recommandation 400 To/serveur
+
 ## 3. Valider le déploiement
 
 ```powershell
