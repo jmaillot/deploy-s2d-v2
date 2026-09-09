@@ -39,11 +39,12 @@ production 2-node clusters. Default Mirror.
 Fast-tier mirror share for NestedParity (10-30, default 20). Higher values
 favor write bursts; lower values favor capacity.
 .PARAMETER StorageTier
-Capacity media for nested tier templates. Auto (default) picks HDD when
-present, else SSD; with SSD+HDD and no NVMe/SCM cache tier, SSD is cache
-so HDD is the only capacity tier and overriding to SSD warns. Classic
-Mirror volumes are auto-placed by S2D; the cache (SSD/NVMe) is always
-configured automatically by Enable-ClusterS2D.
+Capacity media per volume: a single value broadcasts to all volumes, or
+pass one per volume (count must match VolumeCount), e.g. SSD,HDD pins
+volume _01 to SSD and _02 to SAS/HDD. Needs NVMe/SCM cache for SSD+HDD
+side by side. Auto (default) picks HDD when present, else SSD. Classic
+Mirror volumes with Auto are auto-placed by S2D; explicit pins use a
+MirrorOn<Media> tier template created if missing.
 .PARAMETER VolumeSize
 Per-volume fixed size with optional suffix, e.g. 2TB, 512GB, bytes.
 Required when SizingMode is Fixed.
@@ -61,6 +62,9 @@ Log file path. Default C:\S2D_Deployment.log.
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV_S2D" -SizingMode "Auto"
 .EXAMPLE
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV_S2D" -VolumeCount 2 -Resiliency NestedParity -SizingMode "Auto"
+.EXAMPLE
+# NVMe cache + SSD/SAS capacity: hot volume pinned to SSD, cold to SAS/HDD.
+New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -StorageTier SSD,HDD -SizingMode "Auto"
 #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     [OutputType([System.Object])]
@@ -85,7 +89,7 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
         [ValidateRange(10, 30)]
         [int]$NestedMirrorPercent = 20,
         [ValidateSet("Auto","SSD","HDD")]
-        [string]$StorageTier = "Auto",
+        [string[]]$StorageTier = @("Auto"),
         [string]$VolumeSize,
         [ValidateSet("Auto","Fixed")]
         [string]$SizingMode = "Auto",
@@ -110,6 +114,9 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
         $mult = if ([string]::IsNullOrEmpty($unit) -or $unit -eq 'B') { 1 } else { @{ KB = 1KB; MB = 1MB; GB = 1GB; TB = 1TB }[$unit] }
         $VolumeSizeBytes = [uint64]([double]$m.Groups['n'].Value * $mult)
         if ($VolumeSizeBytes -le 0) { throw "Unparseable -VolumeSize: '$VolumeSize' resolves to 0 bytes." }
+    }
+    if ($StorageTier.Count -gt 1 -and $StorageTier.Count -ne $VolumeCount) {
+        throw "StorageTier count ($($StorageTier.Count)) must be 1 or match VolumeCount ($VolumeCount)."
     }
 
     # Pre-mutation checks: everything verifiable without changing state.
@@ -229,35 +236,51 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
             }
         }
 
-        $mirrorTierName = ""
-        $parityTierName = ""
-        if ($Resiliency -ne "Mirror") {
-            $tierMedia = $StorageTier
-            if ($tierMedia -eq "Auto") {
-                $tierMedia = if ($capacityMedia -contains "HDD") { "HDD" } elseif ($capacityMedia.Count -gt 0) { $capacityMedia[0] } else { "SSD" }
-            } elseif ($capacityMedia.Count -gt 0 -and $tierMedia -notin $capacityMedia) {
-                Write-Warning ("StorageTier {0} is not a capacity tier here (capacity: {1}); nested tiers are still created on {0} and may fail or misbehave." -f $tierMedia, ($capacityMedia -join ", "))
+        $defaultTierMedia = if ($capacityMedia -contains "HDD") { "HDD" } elseif ($capacityMedia.Count -gt 0) { $capacityMedia[0] } else { "SSD" }
+        $volumeTierMedia = Get-S2DVolumeTierMap -VolumeCount $VolumeCount -StorageTier $StorageTier -DefaultMedia $defaultTierMedia
+        $pinnedMedia = @()
+        for ($m = 0; $m -lt $volumeTierMedia.Count; $m++) {
+            $rawTier = if ($StorageTier.Count -eq 1) { $StorageTier[0] } else { $StorageTier[$m] }
+            if ($rawTier -ne "Auto") { $pinnedMedia += $volumeTierMedia[$m] }
+        }
+        $pinnedMedia = @($pinnedMedia | Select-Object -Unique)
+        foreach ($pinned in $pinnedMedia) {
+            if ($capacityMedia.Count -gt 0 -and $pinned -notin $capacityMedia) {
+                Write-Warning ("StorageTier {0} is not a capacity tier here (capacity: {1}); pinned volumes target {0} anyway and may fail." -f $pinned, ($capacityMedia -join ", "))
             }
-            $mirrorTierName = "NestedMirrorOn$TierMedia"
-            $parityTierName = "NestedParityOn$TierMedia"
-            # A lookup miss just means the template is created below (WS2019 needs explicit templates).
-            $existingTiers = @(Get-StoragePool -FriendlyName "S2D on $ClusterName" -ErrorAction Stop | Get-StorageTier -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FriendlyName)
-            if ($mirrorTierName -notin $existingTiers) {
-                New-StorageTier -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $mirrorTierName -ResiliencySettingName Mirror -MediaType $tierMedia -NumberOfDataCopies 4
-            }
-            if ($Resiliency -eq "NestedParity" -and $parityTierName -notin $existingTiers) {
-                $paritySplat = @{
-                    StoragePoolFriendlyName = "S2D on $ClusterName"
-                    FriendlyName            = $parityTierName
-                    ResiliencySettingName   = "Parity"
-                    MediaType               = $tierMedia
-                    NumberOfDataCopies      = 2
-                    PhysicalDiskRedundancy  = 1
-                    NumberOfGroups          = 1
-                    FaultDomainAwareness    = "StorageScaleUnit"
-                    ColumnIsolation         = "PhysicalDisk"
+        }
+
+        # A lookup miss just means the template is created below (WS2019 needs explicit templates).
+        $existingTiers = @(Get-StoragePool -FriendlyName "S2D on $ClusterName" -ErrorAction Stop | Get-StorageTier -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FriendlyName)
+        if ($Resiliency -eq "Mirror") {
+            foreach ($tierMedia in $pinnedMedia) {
+                $mirrorTierName = "MirrorOn$TierMedia"
+                if ($mirrorTierName -notin $existingTiers) {
+                    New-StorageTier -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $mirrorTierName -ResiliencySettingName Mirror -MediaType $tierMedia -NumberOfDataCopies 2
                 }
-                New-StorageTier @paritySplat
+            }
+        } else {
+            $distinctMedia = @($volumeTierMedia | Select-Object -Unique)
+            foreach ($tierMedia in $distinctMedia) {
+                $mirrorTierName = "NestedMirrorOn$TierMedia"
+                $parityTierName = "NestedParityOn$TierMedia"
+                if ($mirrorTierName -notin $existingTiers) {
+                    New-StorageTier -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $mirrorTierName -ResiliencySettingName Mirror -MediaType $tierMedia -NumberOfDataCopies 4
+                }
+                if ($Resiliency -eq "NestedParity" -and $parityTierName -notin $existingTiers) {
+                    $paritySplat = @{
+                        StoragePoolFriendlyName = "S2D on $ClusterName"
+                        FriendlyName            = $parityTierName
+                        ResiliencySettingName   = "Parity"
+                        MediaType               = $tierMedia
+                        NumberOfDataCopies      = 2
+                        PhysicalDiskRedundancy  = 1
+                        NumberOfGroups          = 1
+                        FaultDomainAwareness    = "StorageScaleUnit"
+                        ColumnIsolation         = "PhysicalDisk"
+                    }
+                    New-StorageTier @paritySplat
+                }
             }
         }
 
@@ -269,19 +292,26 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
                 $volumeNames += ("{0}_{1:D2}" -f $VolumeName, $i)
             }
         }
-        foreach ($name in $volumeNames) {
+        for ($idx = 0; $idx -lt $volumeNames.Count; $idx++) {
+            $name = $volumeNames[$idx]
             if (Get-VirtualDisk -FriendlyName $name -ErrorAction SilentlyContinue) {
                 Write-S2DLog "Volume $name exists, skipping creation."
                 continue
             }
+            $volMedia = $volumeTierMedia[$idx]
+            $rawTier = if ($StorageTier.Count -eq 1) { $StorageTier[0] } else { $StorageTier[$idx] }
             if ($Resiliency -eq "Mirror") {
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $name -FileSystem CSVFS_ReFS -Size $perVolumeBytes -ResiliencySettingName Mirror | Out-Null
+                if ($rawTier -eq "Auto") {
+                    New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $name -FileSystem CSVFS_ReFS -Size $perVolumeBytes -ResiliencySettingName Mirror | Out-Null
+                } else {
+                    New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $name -FileSystem CSVFS_ReFS -StorageTierFriendlyNames "MirrorOn$volMedia" -StorageTierSizes $perVolumeBytes | Out-Null
+                }
             } elseif ($Resiliency -eq "NestedMirror") {
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $name -FileSystem CSVFS_ReFS -StorageTierFriendlyNames $mirrorTierName -StorageTierSizes $perVolumeBytes | Out-Null
+                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $name -FileSystem CSVFS_ReFS -StorageTierFriendlyNames "NestedMirrorOn$volMedia" -StorageTierSizes $perVolumeBytes | Out-Null
             } else {
                 $mirrorPart = [uint64][math]::Floor($perVolumeBytes * ($NestedMirrorPercent / 100.0))
                 $parityPart = $perVolumeBytes - $mirrorPart
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $name -FileSystem CSVFS_ReFS -StorageTierFriendlyNames $mirrorTierName, $parityTierName -StorageTierSizes $mirrorPart, $parityPart | Out-Null
+                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $name -FileSystem CSVFS_ReFS -StorageTierFriendlyNames "NestedMirrorOn$volMedia", "NestedParityOn$volMedia" -StorageTierSizes $mirrorPart, $parityPart | Out-Null
             }
         }
     }

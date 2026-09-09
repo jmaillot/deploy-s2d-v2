@@ -45,7 +45,9 @@ Mirror (default), NestedMirror, or NestedParity.
 .PARAMETER NestedMirrorPercent
 Fast-tier mirror share for NestedParity. Default 20.
 .PARAMETER StorageTier
-Capacity media for nested tiers. Auto (default), SSD, or HDD.
+Capacity media per volume. Auto (default), SSD, or HDD. A single value
+broadcasts; pass one per volume to pin (needs NVMe/SCM cache for
+SSD+HDD side by side).
 .PARAMETER VolumeSize
 Fixed size. Required when SizingMode is Fixed.
 .PARAMETER SizingMode
@@ -90,7 +92,7 @@ Start-S2DDeployment -ClusterName "CL-S2D" -ClusterNodes "S2D-01","S2D-02" -Clust
         [string]$Resiliency = "Mirror",
         [int]$NestedMirrorPercent = 20,
         [ValidateSet("Auto","SSD","HDD")]
-        [string]$StorageTier = "Auto",
+        [string[]]$StorageTier = @("Auto"),
         [string]$VolumeSize,
         [ValidateSet("Auto","Fixed")]
         [string]$SizingMode = "Auto",

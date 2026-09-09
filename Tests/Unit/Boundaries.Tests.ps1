@@ -22,6 +22,11 @@ Describe 'New-S2DCluster boundaries' {
         { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -SizingMode Fixed -VolumeSize 'potato' -ErrorAction Stop } |
             Should -Throw '*Unparseable*'
     }
+
+    It 'throws when StorageTier count matches neither 1 nor VolumeCount' {
+        { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -VolumeCount 2 -StorageTier SSD,HDD,SSD -ErrorAction Stop } |
+            Should -Throw '*match VolumeCount*'
+    }
 }
 
 Describe 'Start-S2DNodePrep boundaries' {

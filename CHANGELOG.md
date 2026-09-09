@@ -7,6 +7,10 @@
 - `-VolumeCount` (1-64, `-VolumeName` as prefix) so ownership distributes
   (at least 1 volume per node); `-NestedMirrorPercent` (10-30, default 20)
   and `-StorageTier Auto|SSD|HDD` for nested tier placement
+- Per-volume tier pinning: single `-StorageTier` broadcasts, or one per
+  volume (`-VolumeCount 2 -StorageTier SSD,HDD` pins hot to SSD, cold to
+  SAS/HDD; needs NVMe/SCM cache for both side by side). Pinned Mirror
+  volumes use an auto-created MirrorOn tier template
 - Drive-based reserve floor (1 capacity drive/server up to 4; SSD+HDD only
   with a dedicated NVMe/SCM cache tier, else HDD alone for SSD+SAS pools);
   larger of floor and `-CapacityReservePercent` wins. Drive counts and

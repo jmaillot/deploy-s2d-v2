@@ -57,6 +57,24 @@ Describe 'Get-S2DCapacityMedia' {
     }
 }
 
+Describe 'Get-S2DVolumeTierMap' {
+    It 'broadcasts a single tier to all volumes' {
+        Get-S2DVolumeTierMap -VolumeCount 2 -StorageTier @('Auto') -DefaultMedia 'HDD' | Should -Be @('HDD', 'HDD')
+    }
+
+    It 'maps one tier per volume' {
+        Get-S2DVolumeTierMap -VolumeCount 2 -StorageTier @('SSD', 'HDD') -DefaultMedia 'HDD' | Should -Be @('SSD', 'HDD')
+    }
+
+    It 'resolves Auto entries to the default media' {
+        Get-S2DVolumeTierMap -VolumeCount 2 -StorageTier @('SSD', 'Auto') -DefaultMedia 'HDD' | Should -Be @('SSD', 'HDD')
+    }
+
+    It 'throws when the count matches neither 1 nor VolumeCount' {
+        { Get-S2DVolumeTierMap -VolumeCount 2 -StorageTier @('SSD', 'HDD', 'SSD') -DefaultMedia 'HDD' } | Should -Throw '*match VolumeCount*'
+    }
+}
+
 Describe 'Get-S2DCapacityReserve' {
     It 'takes the drive floor on small pools (2 nodes x largest HDD)' {
         $drives = @(

@@ -54,6 +54,7 @@ Describe 'Parameter contracts' {
         $params['VolumeCount'].ParameterType | Should -Be ([int])
         $params['Resiliency'].ParameterType | Should -Be ([string])
         $params['NestedMirrorPercent'].ParameterType | Should -Be ([int])
+        $params['StorageTier'].ParameterType | Should -Be ([string[]])
     }
 
     It 'wrapper forwards v2 volume params' {
