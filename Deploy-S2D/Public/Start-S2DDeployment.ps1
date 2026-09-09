@@ -46,9 +46,10 @@ broadcasts; pass one per volume to mix.
 .PARAMETER NestedMirrorPercent
 Fast-tier mirror share for NestedParity. Default 20.
 .PARAMETER StorageTier
-Capacity media per volume. Auto (default), SSD, or HDD. A single value
+Capacity media per volume. Auto (default), SSD, or HDD (HDD = SAS spinning
+disks). A single value
 broadcasts; pass one per volume to pin (needs NVMe/SCM cache for
-SSD+HDD side by side).
+SSD+SAS side by side).
 .PARAMETER VolumeSize
 Fixed size. Required when SizingMode is Fixed.
 .PARAMETER SizingMode

@@ -43,8 +43,9 @@ favor write bursts; lower values favor capacity.
 .PARAMETER StorageTier
 Capacity media per volume: a single value broadcasts to all volumes, or
 pass one per volume (count must match VolumeCount), e.g. SSD,HDD pins
-volume _01 to SSD and _02 to SAS/HDD. Needs NVMe/SCM cache for SSD+HDD
-side by side. Auto (default) picks HDD when present, else SSD. Classic
+volume _01 to SSD and _02 to SAS. Needs NVMe/SCM cache for SSD+SAS
+side by side. Auto (default) picks SAS (reported as HDD media type)
+when present, else SSD. Classic
 Mirror volumes with Auto are auto-placed by S2D; explicit pins use a
 MirrorOn<Media> tier template created if missing.
 .PARAMETER VolumeSize
@@ -54,7 +55,8 @@ Required when SizingMode is Fixed.
 Auto (default, splits usable capacity evenly across volumes) or Fixed.
 .PARAMETER CapacityReservePercent
 Pool percent held back in addition to the drive-based floor (one capacity
-drive per server, up to 4; SSD plus HDD when both tiers exist). The larger
+drive per server, up to 4; SSD plus SAS only with an NVMe/SCM cache tier,
+else SAS alone). The larger
 of floor and percent wins. Default 20, range 0-100.
 .PARAMETER UseFullPool
 Ignore the reserve and use the whole pool.
@@ -65,7 +67,7 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
 .EXAMPLE
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV_S2D" -VolumeCount 2 -Resiliency NestedParity -SizingMode "Auto"
 .EXAMPLE
-# NVMe cache + SSD/SAS capacity: hot volume pinned to SSD, cold to SAS/HDD.
+# NVMe cache + SSD/SAS capacity: hot volume pinned to SSD, cold to SAS.
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -StorageTier SSD,HDD -SizingMode "Auto"
 .EXAMPLE
 # Fast mirror for the SSD volume, efficient parity for the SAS volume.

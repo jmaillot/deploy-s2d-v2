@@ -5,7 +5,7 @@ Pool reserve in bytes: drive-based floor vs. percent, max wins.
 .DESCRIPTION
 Pure function (no cluster access) so Pester can test it directly.
 Microsoft recommends reserving one capacity drive per server (up to 4
-drives); with a dedicated cache tier (NVMe/SCM) plus SSD+HDD capacity,
+drives); with a dedicated cache tier (NVMe/SCM) plus SSD+SAS capacity,
 one of each per server. The
 percent reserve is kept as an override for large pools. Returns the
 larger of the two, capped at the free pool bytes.

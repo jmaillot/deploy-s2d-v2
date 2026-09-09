@@ -86,14 +86,16 @@ quorum, effacée ensuite, jamais journalisée.
 
 ### Stockage : résilience, volumes et dimensionnement
 
-| `-Resiliency` | Rendement | Survit à | Quand l'utiliser |
+| `-Resiliency` | Utile (part du pool brut) | Survit à | Quand l'utiliser |
 |---|---|---|---|
 | `Mirror` (défaut) | 50 % | 1 panne (disque ou nœud) | Labo, vitesse max, volumes SSD |
 | `NestedMirror` | 25 % | 2 pannes | 2 nœuds en production, sécurité max |
 | `NestedParity` | ~35-40 % | 2 pannes | 2 nœuds en production, équilibré (choix Microsoft) |
 
-Les volumes imbriqués ne se convertissent pas après coup — à choisir dès le
-départ. `-NestedMirrorPercent` (10-30, défaut 20) règle la part rapide des
+Utile = la part du pool brut disponible pour les données : 50 % transforment
+10 To bruts en 5 To de volumes. Les volumes imbriqués ne se convertissent
+pas après coup — à choisir dès le départ.
+`-NestedMirrorPercent` (10-30, défaut 20) règle la part rapide des
 volumes `NestedParity` : plus haut favorise les rafales d'écriture, plus bas
 la capacité.
 
@@ -101,7 +103,8 @@ la capacité.
 partir de `-VolumeName` comme préfixe (1 conserve le nom exact). Au moins un
 volume par nœud pour répartir la propriété. Une seule valeur `-Resiliency` /
 `-StorageTier` s'applique à tous ; une par volume pour mixer (voir les cas
-ci-dessous).
+ci-dessous). Note : S2D déclare les disques SAS rotatifs avec le type de
+média `HDD`, donc la valeur `-StorageTier` pour SAS reste `HDD`.
 
 ### Vos disques décident de tout
 
@@ -113,8 +116,8 @@ cache lecture/écriture ; tous les volumes sont sur SAS. Impossible de créer
 des volumes SSD — mais les données chaudes des VM restent servies depuis le
 SSD automatiquement : dimensionnez le cache pour l'ensemble de travail
 (~10 % de la capacité SAS : 4x 4 To SAS par serveur → 2x 800 Go de cache
-SSD). Gardez `-StorageTier` sur `Auto` (prend HDD) ; forcer `SSD` avertit.
-La réserve plancher ne compte que HDD. Exemple : pool SAS brut de 32 To
+SSD). Gardez `-StorageTier` sur `Auto` (prend SAS) ; forcer `SSD` avertit.
+La réserve plancher ne compte que SAS. Exemple : pool SAS brut de 32 To
 avec plancher de 8 To (2 nœuds x disque 4 To) → utile `Mirror` ≈
 (libres − 8 To) x 50 %.
 
@@ -134,7 +137,7 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
 ```
 
 2x NVMe par serveur suffisent (dimensionnés pour l'ensemble de travail,
-pas pour la capacité). La réserve plancher compte un SSD plus un HDD par
+pas pour la capacité). La réserve plancher compte un SSD plus un SAS par
 serveur.
 
 **Cas C — SSD seuls (tout-flash).** Pas de tier cache (cache écriture seule
@@ -146,7 +149,7 @@ d'épinglage.
 invalide à elle seule — chaque serveur a besoin de flash pour le cache (au
 moins 2 disques cache SSD/NVMe à côté de 4+ disques capacitatifs). Ajoutez
 des SSD (devient cas A) ou du NVMe (devient cas B une fois des SSD présents,
-sinon HDD cachés par NVMe).
+sinon SAS cachés par NVMe).
 
 **Dimensionnement.** `Auto` (défaut) répartit la capacité utile — chaque
 volume reçoit une part égale d'empreinte pool fois son rendement.

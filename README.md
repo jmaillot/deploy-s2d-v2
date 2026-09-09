@@ -81,13 +81,15 @@ cleared after, never logged.
 
 ### Storage: resiliency, volumes, and sizing
 
-| `-Resiliency` | Efficiency | Survives | When to use |
+| `-Resiliency` | Usable (share of raw pool) | Survives | When to use |
 |---|---|---|---|
 | `Mirror` (default) | 50% | 1 failure (disk or node) | Lab, max speed, SSD hot volumes |
 | `NestedMirror` | 25% | 2 failures | Production 2-node, max safety |
 | `NestedParity` | ~35-40% | 2 failures | Production 2-node, balanced (Microsoft's pick) |
 
-Nested volumes cannot be converted in place later — choose upfront.
+Usable is the share of raw pool capacity available for data: 50% turns
+10 TB raw into 5 TB of volumes. Nested volumes cannot be converted in
+place later — choose upfront.
 `-NestedMirrorPercent` (10-30, default 20) sets the fast-tier share of
 `NestedParity` volumes: higher favors write bursts, lower favors capacity.
 
@@ -95,7 +97,8 @@ Nested volumes cannot be converted in place later — choose upfront.
 from `-VolumeName` as prefix (count 1 keeps the exact name). Use at least
 one volume per node so ownership distributes. A single `-Resiliency` /
 `-StorageTier` value broadcasts to all volumes; pass one per volume to
-mix (see cases below).
+mix (see cases below). Note: S2D reports SAS spinning disks with media
+type `HDD`, so the `-StorageTier` value for SAS is `HDD`.
 
 ### Which drives you have decides everything
 
@@ -107,8 +110,8 @@ read+write cache; every volume lives on SAS. You cannot create SSD
 volumes — but hot VM data is still served from SSD automatically, so
 size the cache to cover the active working set (~10% of SAS capacity:
 4x 4 TB SAS per server → 2x 800 GB SSD cache). Keep `-StorageTier` on
-`Auto` (it picks HDD); forcing `SSD` warns. The reserve floor counts
-HDD only. Example: 32 TB raw SAS pool with an 8 TB floor (2 nodes x
+`Auto` (it picks SAS); forcing `SSD` warns. The reserve floor counts
+SAS only. Example: 32 TB raw SAS pool with an 8 TB floor (2 nodes x
 4 TB drive) → `Mirror` usable ≈ (free − 8 TB) x 50%.
 
 ```powershell
@@ -126,7 +129,7 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
 ```
 
 2x NVMe per server is enough (working-set sized, not capacity sized).
-The reserve floor counts one SSD plus one HDD per server.
+The reserve floor counts one SSD plus one SAS drive per server.
 
 **Case C — SSD only (all-flash).** No cache tier (write-only cache is
 optional); everything is fast SSD capacity. The simplest layout:
@@ -137,7 +140,7 @@ there are no pinning decisions at all.
 configuration on its own — every server needs flash for cache (at
 least 2 SSD/NVMe cache drives next to 4+ capacity drives). Add SSDs
 (becomes case A) or NVMe (becomes case B once SSDs are present, else
-NVMe-cached HDD).
+NVMe-cached SAS).
 
 **Sizing.** `Auto` (default) splits usable capacity across volumes — each
 volume gets an equal pool-footprint share times its own efficiency.
