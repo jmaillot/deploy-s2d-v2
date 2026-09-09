@@ -64,6 +64,29 @@ function showMode(mode) {
   document.getElementById("tab-need").setAttribute("aria-selected", mode === "need");
 }
 
+/* Mode-2 drive sizes per capacity media. */
+const NEED_SIZES = {
+  SAS: [2, 4, 8, 12, 16, 20],
+  SSD: [0.8, 1.6, 1.92, 3.84, 7.68]
+};
+
+function updateNeedSizes() {
+  const media = document.getElementById("n-media").value;
+  const sel = document.getElementById("n-size");
+  const prev = parseFloat(sel.value);
+  sel.innerHTML = "";
+  for (const s of NEED_SIZES[media]) {
+    const opt = document.createElement("option");
+    opt.value = s;
+    opt.textContent = s >= 1 ? s + " TB" : Math.round(s * 1000) + " GB";
+    sel.appendChild(opt);
+  }
+  const keep = NEED_SIZES[media].includes(prev) ? prev : NEED_SIZES[media][1];
+  sel.value = keep;
+}
+
+document.addEventListener("DOMContentLoaded", updateNeedSizes);
+
 function num(id) {
   const v = parseFloat(document.getElementById(id).value);
   return Number.isFinite(v) ? v : 0;
@@ -200,7 +223,7 @@ function calcNeed() {
     document.getElementById("n-cache").textContent = "2× SSD ≥ " + cacheEach + " TB/server (~10% of SAS)";
     if (found < 4) items.push(["warn", "Below 4 capacity drives per server — nested resiliency needs 4+."]);
   } else {
-    document.getElementById("n-cache").textContent = "None required (all-flash) — optional write-only NVMe cache";
+    document.getElementById("n-cache").textContent = "None if all-flash; 2× NVMe/server if SSD capacity under NVMe cache";
   }
   if (foundUsable > 64) items.push(["warn", "Plan more than 1 volume: single volumes cap at 64 TB (10 TB for VSS/Volsnap backups)."]);
   items.push(["ok", "Verify on the other tab with these exact drive counts before buying."]);

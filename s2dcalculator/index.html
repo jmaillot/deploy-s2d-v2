@@ -124,22 +124,13 @@
           </select>
         </label>
         <label>Capacity drive
-          <select id="n-media">
+          <select id="n-media" onchange="updateNeedSizes()">
             <option value="SAS" selected>SAS spinning</option>
-            <option value="SSD">SSD (all-flash, needs NVMe/SSD cache note)</option>
+            <option value="SSD">SSD (all-flash, or capacity under NVMe cache)</option>
           </select>
         </label>
-        <label>Drive size (TB)
-          <select id="n-size">
-            <option value="2">2 TB</option>
-            <option value="4" selected>4 TB</option>
-            <option value="8">8 TB</option>
-            <option value="12">12 TB</option>
-            <option value="16">16 TB</option>
-            <option value="1.92">1.92 TB SSD</option>
-            <option value="3.84">3.84 TB SSD</option>
-            <option value="7.68">7.68 TB SSD</option>
-          </select>
+        <label>Drive size
+          <select id="n-size"></select>
         </label>
         <label>Reserve override %
           <input type="number" id="n-reservepct" value="20" min="0" max="100" step="1">
