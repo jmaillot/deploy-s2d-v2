@@ -3,6 +3,182 @@
    Get-S2DCapacityReserve / Get-S2DCapacityMedia from Deploy-S2D.
    Decimal TB throughout (1 TB = 1e12 bytes), like drive vendors. */
 
+/* ---------- i18n ---------- */
+const I18N = {
+en: {
+  title: "S2D Capacity Planner — 2-node Storage Spaces Direct",
+  sub1: "How many disks of which type for the usable capacity you want — 2-node Storage Spaces Direct (Windows Server 2025). Same math as the",
+  sub2: "module.",
+  tabGet: "What do I get?",
+  tabNeed: "What do I need?",
+  cluster: "Cluster",
+  nodes: "Nodes",
+  resiliency: "Resiliency",
+  resM: "Mirror — 50% usable, survives 1 failure",
+  resNM: "Nested mirror — 25% usable, survives 2 failures",
+  resNP: "Nested parity — ~35–40% usable, survives 2 failures",
+  resMs: "Mirror — 50%",
+  resNMs: "Nested mirror — 25%",
+  resNPs: "Nested parity — ~35–40%",
+  mirrorShare: "Mirror share for nested parity",
+  reservePct: "Reserve %",
+  volumes: "Volumes (usable split evenly)",
+  drivesPerServer: "Drives per server",
+  hintCache: "Fastest media present becomes cache automatically (zero usable capacity).",
+  colType: "Type", colCount: "Count", colSize: "Size each",
+  rowNvme: "NVMe (cache)",
+  rowSsd: "SSD (cache or capacity)",
+  rowSas: "SAS spinning (capacity)",
+  calculate: "Calculate",
+  result: "Result",
+  usableTB: "usable (TB)", perVolTB: "per volume (TB)", efficiency: "efficiency",
+  rawPool: "Raw pool", cacheRow: "Cache (not usable)", tiersRow: "Capacity tiers", reserveRow: "Reserve held back",
+  cacheNote: "(serves hot data, not usable)",
+  tiersCap: "{m} capacity",
+  target: "Target",
+  usableWanted: "Usable capacity wanted (TB)",
+  capDrive: "Capacity drive",
+  mediaSas: "SAS spinning",
+  mediaSsd: "SSD (all-flash, or capacity under NVMe cache)",
+  driveSize: "Drive size",
+  shoppingList: "Shopping list (per server)",
+  yieldTB: "usable this gives (TB)",
+  rawCluster: "Raw pool (cluster)",
+  cacheToAdd: "Cache to add",
+  resultDrives: "{media} drives",
+  cacheSAS: "2× SSD ≥ {size}/server (~10% of SAS)",
+  cacheSSD: "None if all-flash; 2× NVMe/server if SSD capacity under NVMe cache",
+  perfTitle: "Performance cheat sheet",
+  perfNestedM: "Nested mirror (25%)", perfNestedP: "Nested parity (~35–40%)",
+  perfRead: "Read latency", perfReadM: "Lowest", perfReadNM: "Lowest (any of 4 copies)", perfReadNP: "Fast recent, slower aged",
+  perfWrite: "Sustained random writes", perfWriteM: "Highest", perfWriteNM: "Highest", perfWriteNP: "Lowest",
+  perfAmp: "Backend writes / guest write", perfAmpNP: "~1.2–2× + CPU",
+  perfSurvives: "Survives", perfSurvivesM: "1 failure", perfSurvivesN: "2 failures",
+  perfBest: "Best for", perfBestM: "Hot SSD volumes", perfBestNM: "Max safety", perfBestNP: "Cold/bulk SAS volumes",
+  takeaway1: "Size the parity mirror share to your biggest single burst (daily backup + margin), not the average — overflowing it drops throughput until destaging catches up.",
+  takeaway2: "An SSD cache flatters SAS parity: random writes coalesce in SSD and destage sequentially. Mirror-on-SSD + parity-on-SAS is the sweet spot.",
+  footer: "Math mirrors <code>Get-S2DVolumeEfficiency</code> / <code>Get-S2DCapacityReserve</code> (1 TB = 1000⁴ bytes, decimal like vendors). Verify with <code>-WhatIf</code> before deploying.",
+  errNoCapacity: "No capacity drives: every server needs flash (SSD/NVMe) for cache plus capacity drives. SAS alone is not a valid S2D layout.",
+  warnCapServer: "Only ~{n} capacity drives per server — Microsoft minimum is 4, and nested resiliency needs 4+.",
+  warnCacheCount: "Only {n} cache drive(s) per server — use at least 2 for redundancy.",
+  warnCacheSmall: "Cache ({cache}/server) is under ~10% of SAS capacity ({sas}/server) — hot working sets may spill to spinning disks.",
+  warn400: "Over 400 TB per server — resync after reboot/update takes very long. Microsoft recommends staying near 400 TB/server.",
+  warn64vol: "Per-volume size exceeds the 64 TB Microsoft recommendation (10 TB for VSS/Volsnap backups) — raise the volume count.",
+  tipNested: "Tip: for production 2-node clusters Microsoft recommends nested resiliency (survives 2 failures instead of 1).",
+  tipCacheAuto: "Hot data is served from the SSD read+write cache automatically — size it to the active working set.",
+  warnVolsNodes: "Fewer volumes than nodes — use at least 1 volume per node so ownership distributes.",
+  errTooBig: "Even 48 drives/server of this size cannot reach the target — use bigger drives or more nodes.",
+  warnBelow4need: "Below 4 capacity drives per server — nested resiliency needs 4+.",
+  warn64need: "Plan more than 1 volume: single volumes cap at 64 TB (10 TB for VSS/Volsnap backups).",
+  tipVerify: "Verify on the other tab with these exact drive counts before buying."
+},
+fr: {
+  title: "Planificateur de capacité S2D — Storage Spaces Direct à 2 nœuds",
+  sub1: "Combien de disques de quel type pour la capacité utile voulue — Storage Spaces Direct à 2 nœuds (Windows Server 2025). Mêmes calculs que le",
+  sub2: "module.",
+  tabGet: "Qu'est-ce que j'obtiens ?",
+  tabNeed: "De quoi ai-je besoin ?",
+  cluster: "Cluster",
+  nodes: "Nœuds",
+  resiliency: "Résilience",
+  resM: "Mirror — 50 % utiles, survit à 1 panne",
+  resNM: "Miroir imbriqué — 25 % utiles, survit à 2 pannes",
+  resNP: "Parité imbriquée — ~35–40 % utiles, survit à 2 pannes",
+  resMs: "Mirror — 50 %",
+  resNMs: "Miroir imbriqué — 25 %",
+  resNPs: "Parité imbriquée — ~35–40 %",
+  mirrorShare: "Part miroir pour la parité imbriquée",
+  reservePct: "Réserve %",
+  volumes: "Volumes (utile répartie)",
+  drivesPerServer: "Disques par serveur",
+  hintCache: "Le média le plus rapide devient automatiquement le cache (aucune capacité utile).",
+  colType: "Type", colCount: "Nombre", colSize: "Taille unitaire",
+  rowNvme: "NVMe (cache)",
+  rowSsd: "SSD (cache ou capacité)",
+  rowSas: "SAS rotatifs (capacité)",
+  calculate: "Calculer",
+  result: "Résultat",
+  usableTB: "utiles (To)", perVolTB: "par volume (To)", efficiency: "rendement",
+  rawPool: "Pool brut", cacheRow: "Cache (non utile)", tiersRow: "Tiers capacitatifs", reserveRow: "Réserve conservée",
+  cacheNote: "(sert les données chaudes, non utile)",
+  tiersCap: "{m} en capacité",
+  target: "Objectif",
+  usableWanted: "Capacité utile voulue (To)",
+  capDrive: "Disque capacitif",
+  mediaSas: "SAS rotatifs",
+  mediaSsd: "SSD (tout-flash, ou capacité sous cache NVMe)",
+  driveSize: "Taille disque",
+  shoppingList: "Liste d'achats (par serveur)",
+  yieldTB: "utile obtenue (To)",
+  rawCluster: "Pool brut (cluster)",
+  cacheToAdd: "Cache à ajouter",
+  resultDrives: "disques {media}",
+  cacheSAS: "2× SSD ≥ {size}/serveur (~10 % du SAS)",
+  cacheSSD: "Rien si tout-flash ; 2× NVMe/serveur si SSD sous cache NVMe",
+  perfTitle: "Aide-mémoire performance",
+  perfNestedM: "Miroir imbriqué (25 %)", perfNestedP: "Parité imbriquée (~35–40 %)",
+  perfRead: "Latence lecture", perfReadM: "La plus basse", perfReadNM: "La plus basse (4 copies)", perfReadNP: "Rapide récent, plus lent vieilli",
+  perfWrite: "Écritures aléatoires soutenues", perfWriteM: "Max", perfWriteNM: "Max", perfWriteNP: "Min",
+  perfAmp: "Écritures backend / écriture", perfAmpNP: "~1,2–2× + CPU",
+  perfSurvives: "Survit à", perfSurvivesM: "1 panne", perfSurvivesN: "2 pannes",
+  perfBest: "Idéal pour", perfBestM: "Volumes SSD chauds", perfBestNM: "Sécurité max", perfBestNP: "Volumes SAS froids",
+  takeaway1: "Dimensionnez la part miroir sur la plus grosse rafale unique (sauvegarde quotidienne + marge), pas sur la moyenne — la déborder effondre le débit jusqu'au rattrapage.",
+  takeaway2: "Un cache SSD sublime la parité SAS : les écritures aléatoires fusionnent en SSD puis descendent en séquentiel. Mirror-sur-SSD + parité-sur-SAS est le point d'équilibre.",
+  footer: "Calculs identiques à <code>Get-S2DVolumeEfficiency</code> / <code>Get-S2DCapacityReserve</code> (1 To = 1000⁴ octets, décimal comme les constructeurs). Vérifiez avec <code>-WhatIf</code> avant de déployer.",
+  errNoCapacity: "Aucun disque capacitif : chaque serveur a besoin de flash (SSD/NVMe) pour le cache plus des disques capacitatifs. SAS seul n'est pas valide en S2D.",
+  warnCapServer: "Seulement ~{n} disques capacitatifs par serveur — minimum Microsoft 4, et la résilience imbriquée exige 4+.",
+  warnCacheCount: "Seulement {n} disque(s) cache par serveur — au moins 2 pour la redondance.",
+  warnCacheSmall: "Cache ({cache}/serveur) sous ~10 % de la capacité SAS ({sas}/serveur) — les données chaudes peuvent déborder sur disques.",
+  warn400: "Plus de 400 To par serveur — la resync après redémarrage/MAJ est très longue. Microsoft recommande ~400 To/serveur.",
+  warn64vol: "Taille par volume au-delà des 64 To Microsoft (10 To pour sauvegardes VSS/Volsnap) — augmentez le nombre de volumes.",
+  tipNested: "Astuce : en production à 2 nœuds, Microsoft recommande la résilience imbriquée (2 pannes au lieu d'1).",
+  tipCacheAuto: "Les données chaudes sont servies depuis le cache SSD lecture/écriture automatiquement — dimensionnez-le pour l'ensemble de travail.",
+  warnVolsNodes: "Moins de volumes que de nœuds — au moins 1 volume par nœud pour répartir la propriété.",
+  errTooBig: "Même 48 disques/serveur de cette taille n'atteignent pas l'objectif — disques plus gros ou plus de nœuds.",
+  warnBelow4need: "Moins de 4 disques capacitatifs par serveur — la résilience imbriquée exige 4+.",
+  warn64need: "Prévoyez plus d'1 volume : plafond 64 To (10 To pour VSS/Volsnap).",
+  tipVerify: "Vérifiez dans l'autre onglet avec ces nombres exacts avant d'acheter."
+}
+};
+
+let LANG = "en";
+try {
+  LANG = localStorage.getItem("s2d-lang") ||
+    ((navigator.language || "en").toLowerCase().startsWith("fr") ? "fr" : "en");
+} catch (e) { LANG = "en"; }
+
+function t(key, params) {
+  let s = (I18N[LANG] && I18N[LANG][key]) || I18N.en[key] || key;
+  for (const k in (params || {})) s = s.replace("{" + k + "}", params[k]);
+  return s;
+}
+
+function unit() { return LANG === "fr" ? "To" : "TB"; }
+function fmtNum(tb) {
+  return (Math.round(tb * 100) / 100).toLocaleString(LANG === "fr" ? "fr-FR" : "en-US");
+}
+function fmt(tb) { return fmtNum(tb) + " " + unit(); }
+
+function setLang(l) {
+  LANG = l;
+  try { localStorage.setItem("s2d-lang", l); } catch (e) {}
+  applyLang();
+}
+
+function applyLang() {
+  document.documentElement.lang = LANG;
+  document.title = t("title");
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.getElementById("lang-en").classList.toggle("active", LANG === "en");
+  document.getElementById("lang-fr").classList.toggle("active", LANG === "fr");
+  updateNeedSizes();
+  if (!document.getElementById("g-results").hidden) calcGet();
+  if (!document.getElementById("n-results").hidden) calcNeed();
+}
+
+/* ---------- capacity math (mirrors Deploy-S2D helpers) ---------- */
+
 /* Nested-parity lookup: capacity drives/server -> mirror% -> efficiency. */
 const PARITY_TABLE = {
   4: { 10: 0.357, 20: 0.341, 30: 0.326 },
@@ -53,10 +229,6 @@ function reserveTB(rawTB, nodeCount, reservePct, drives) {
   return Math.min(rawTB, Math.max(floor, pct));
 }
 
-function fmt(tb) {
-  return (Math.round(tb * 100) / 100).toLocaleString("en-US") + " TB";
-}
-
 function showMode(mode) {
   document.getElementById("mode-get").hidden = mode !== "get";
   document.getElementById("mode-need").hidden = mode !== "need";
@@ -70,6 +242,11 @@ const NEED_SIZES = {
   SSD: [0.8, 1.6, 1.92, 3.84, 7.68]
 };
 
+function sizeLabel(s) {
+  if (s >= 1) return String(s).replace(".", LANG === "fr" ? "," : ".") + " " + unit();
+  return Math.round(s * 1000) + " GB";
+}
+
 function updateNeedSizes() {
   const media = document.getElementById("n-media").value;
   const sel = document.getElementById("n-size");
@@ -78,14 +255,11 @@ function updateNeedSizes() {
   for (const s of NEED_SIZES[media]) {
     const opt = document.createElement("option");
     opt.value = s;
-    opt.textContent = s >= 1 ? s + " TB" : Math.round(s * 1000) + " GB";
+    opt.textContent = sizeLabel(s);
     sel.appendChild(opt);
   }
-  const keep = NEED_SIZES[media].includes(prev) ? prev : NEED_SIZES[media][1];
-  sel.value = keep;
+  sel.value = NEED_SIZES[media].includes(prev) ? prev : NEED_SIZES[media][1];
 }
-
-document.addEventListener("DOMContentLoaded", updateNeedSizes);
 
 function num(id) {
   const v = parseFloat(document.getElementById(id).value);
@@ -112,24 +286,24 @@ function checkLayout(nodes, drives, capMedia, capPerServer, rawTB) {
     .reduce((a, d) => a + d.n, 0);
 
   if (capMedia.length === 0) {
-    items.push(["error", "No capacity drives: every server needs flash (SSD/NVMe) for cache plus capacity drives. SAS alone is not a valid S2D layout."]);
+    items.push(["error", t("errNoCapacity")]);
     return items;
   }
   if (capPerServer < 4) {
-    items.push(["warn", "Only ~" + capPerServer + " capacity drives per server — Microsoft minimum is 4, and nested resiliency needs 4+."]);
+    items.push(["warn", t("warnCapServer", { n: capPerServer })]);
   }
   if (cacheCount > 0 && cacheCount < 2) {
-    items.push(["warn", "Only " + cacheCount + " cache drive(s) per server — use at least 2 for redundancy."]);
+    items.push(["warn", t("warnCacheCount", { n: cacheCount })]);
   }
   const sasTB = countOf("SAS") * largestOf(drives, "SAS");
   const cacheTB = drives
     .filter((d) => !capMedia.includes(d.media))
     .reduce((a, d) => a + d.n * d.sizeTB, 0);
   if (sasTB > 0 && cacheTB < 0.1 * sasTB) {
-    items.push(["warn", "Cache (" + fmt(cacheTB) + "/server) is under ~10% of SAS capacity (" + fmt(sasTB) + "/server) — hot working sets may spill to spinning disks."]);
+    items.push(["warn", t("warnCacheSmall", { cache: fmt(cacheTB), sas: fmt(sasTB) })]);
   }
   if (rawTB / nodes > 400) {
-    items.push(["warn", "Over 400 TB per server — resync after reboot/update takes very long. Microsoft recommends staying near 400 TB/server."]);
+    items.push(["warn", t("warn400")]);
   }
   return items;
 }
@@ -164,20 +338,20 @@ function calcGet() {
   const eff = efficiency(res, capPerServer, mirrorPct);
   const usable = Math.max(0, rawTB - reserve) * eff;
 
-  document.getElementById("g-usable").textContent = fmt(usable).replace(" TB", "");
-  document.getElementById("g-pervol").textContent = fmt(usable / vols).replace(" TB", "");
-  document.getElementById("g-eff").textContent = Math.round(eff * 1000) / 10 + "%";
+  document.getElementById("g-usable").textContent = fmtNum(usable);
+  document.getElementById("g-pervol").textContent = fmtNum(usable / vols);
+  document.getElementById("g-eff").textContent = (Math.round(eff * 1000) / 10) + "%";
   document.getElementById("g-raw").textContent = fmt(rawTB);
-  document.getElementById("g-cache").textContent = fmt(cacheTB) + (cacheTB > 0 ? " (serves hot data, not usable)" : "");
-  document.getElementById("g-tiers").textContent = capMedia.join(" + ") + " capacity";
+  document.getElementById("g-cache").textContent = fmt(cacheTB) + (cacheTB > 0 ? " " + t("cacheNote") : "");
+  document.getElementById("g-tiers").textContent = t("tiersCap", { m: capMedia.join(" + ") });
   document.getElementById("g-reserve").textContent = fmt(reserve);
 
-  if (usable / vols > 64) items.push(["warn", "Per-volume size exceeds the 64 TB Microsoft recommendation (10 TB for VSS/Volsnap backups) — raise the volume count."]);
-  if (res === "Mirror") items.push(["ok", "Tip: for production 2-node clusters Microsoft recommends nested resiliency (survives 2 failures instead of 1)."]);
+  if (usable / vols > 64) items.push(["warn", t("warn64vol")]);
+  if (res === "Mirror") items.push(["ok", t("tipNested")]);
   if (capMedia.length === 1 && capMedia[0] === "SAS") {
-    items.push(["ok", "Hot data is served from the SSD read+write cache automatically — size it to the active working set."]);
+    items.push(["ok", t("tipCacheAuto")]);
   }
-  if (vols < nodes) items.push(["warn", "Fewer volumes than nodes — use at least 1 volume per node so ownership distributes."]);
+  if (vols < nodes) items.push(["warn", t("warnVolsNodes")]);
 
   warnList("g-warnings", items);
   box.hidden = false;
@@ -207,26 +381,28 @@ function calcNeed() {
   }
 
   if (found < 0) {
-    warnList("n-warnings", [["error", "Even 48 drives/server of this size cannot reach the target — use bigger drives or more nodes."]]);
+    warnList("n-warnings", [["error", t("errTooBig")]]);
     box.hidden = false;
     return;
   }
 
-  document.getElementById("n-count").textContent = found + "× " + size + " TB";
-  document.getElementById("n-count-label").textContent = media + " drives";
-  document.getElementById("n-yield").textContent = fmt(foundUsable).replace(" TB", "");
+  document.getElementById("n-count").textContent = found + "× " + sizeLabel(size);
+  document.getElementById("n-count-label").textContent = t("resultDrives", { media });
+  document.getElementById("n-yield").textContent = fmtNum(foundUsable);
   document.getElementById("n-raw").textContent = fmt(foundRaw);
   document.getElementById("n-reserve").textContent = fmt(foundReserve);
 
   if (media === "SAS") {
     const cacheEach = Math.max(0.8, Math.round((found * size * 0.1) * 10) / 10);
-    document.getElementById("n-cache").textContent = "2× SSD ≥ " + cacheEach + " TB/server (~10% of SAS)";
-    if (found < 4) items.push(["warn", "Below 4 capacity drives per server — nested resiliency needs 4+."]);
+    document.getElementById("n-cache").textContent = t("cacheSAS", { size: String(cacheEach).replace(".", LANG === "fr" ? "," : ".") + " " + unit() });
+    if (found < 4) items.push(["warn", t("warnBelow4need")]);
   } else {
-    document.getElementById("n-cache").textContent = "None if all-flash; 2× NVMe/server if SSD capacity under NVMe cache";
+    document.getElementById("n-cache").textContent = t("cacheSSD");
   }
-  if (foundUsable > 64) items.push(["warn", "Plan more than 1 volume: single volumes cap at 64 TB (10 TB for VSS/Volsnap backups)."]);
-  items.push(["ok", "Verify on the other tab with these exact drive counts before buying."]);
+  if (foundUsable > 64) items.push(["warn", t("warn64need")]);
+  items.push(["ok", t("tipVerify")]);
   warnList("n-warnings", items);
   box.hidden = false;
 }
+
+document.addEventListener("DOMContentLoaded", () => { applyLang(); });

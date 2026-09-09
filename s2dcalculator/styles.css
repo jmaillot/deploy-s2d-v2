@@ -30,7 +30,25 @@ header, main, footer {
 }
 
 header { padding-top: 24px; }
-header h1 { margin: 0 0 4px; font-size: 1.7rem; }
+header h1 { margin: 0; font-size: 1.7rem; }
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.langtoggle { display: flex; gap: 0; border: 1px solid #c9d1dd; border-radius: 8px; overflow: hidden; }
+.langtoggle button {
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+}
+.langtoggle button.active { background: var(--accent); color: #fff; }
 header p { margin: 0 0 16px; color: var(--muted); }
 
 .tabs { display: flex; gap: 8px; margin-bottom: 16px; }

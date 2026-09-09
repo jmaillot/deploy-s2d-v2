@@ -9,11 +9,17 @@
 </head>
 <body>
 <header>
-  <h1>S2D Capacity Planner</h1>
-  <p>How many disks of which type for the usable capacity you want — 2-node Storage Spaces Direct (Windows Server 2025). Same math as the <a href="https://github.com/jmaillot/deploy-s2d-v2">Deploy-S2D module</a>.</p>
+  <div class="topbar">
+    <h1>S2D Capacity Planner</h1>
+    <div class="langtoggle" role="group" aria-label="Language / Langue">
+      <button id="lang-en" onclick="setLang('en')">EN</button>
+      <button id="lang-fr" onclick="setLang('fr')">FR</button>
+    </div>
+  </div>
+  <p><span data-i18n="sub1"></span> <a href="https://github.com/jmaillot/deploy-s2d-v2">Deploy-S2D</a><span data-i18n="sub2"></span></p>
   <nav class="tabs" role="tablist">
-    <button id="tab-get" role="tab" aria-selected="true" onclick="showMode('get')">What do I get?</button>
-    <button id="tab-need" role="tab" aria-selected="false" onclick="showMode('need')">What do I need?</button>
+    <button id="tab-get" role="tab" aria-selected="true" onclick="showMode('get')" data-i18n="tabGet"></button>
+    <button id="tab-need" role="tab" aria-selected="false" onclick="showMode('need')" data-i18n="tabNeed"></button>
   </nav>
 </header>
 
@@ -22,34 +28,34 @@
   <section id="mode-get">
     <div class="grid">
       <div class="card">
-        <h2>Cluster</h2>
-        <label>Nodes
+        <h2 data-i18n="cluster"></h2>
+        <label><span data-i18n="nodes"></span>
           <input type="number" id="g-nodes" value="2" min="2" max="16" step="1">
         </label>
-        <label>Resiliency
+        <label><span data-i18n="resiliency"></span>
           <select id="g-res">
-            <option value="Mirror" selected>Mirror — 50% usable, survives 1 failure</option>
-            <option value="NestedMirror">Nested mirror — 25% usable, survives 2 failures</option>
-            <option value="NestedParity">Nested parity — ~35–40% usable, survives 2 failures</option>
+            <option value="Mirror" data-i18n="resM"></option>
+            <option value="NestedMirror" data-i18n="resNM"></option>
+            <option value="NestedParity" data-i18n="resNP"></option>
           </select>
         </label>
-        <label>Mirror share for nested parity: <span id="g-mirrorpct-val">20</span>%
+        <label><span data-i18n="mirrorShare"></span>: <span id="g-mirrorpct-val">20</span>%
           <input type="range" id="g-mirrorpct" value="20" min="10" max="30" step="1" oninput="document.getElementById('g-mirrorpct-val').textContent=this.value">
         </label>
-        <label>Reserve override %
+        <label><span data-i18n="reservePct"></span>
           <input type="number" id="g-reservepct" value="20" min="0" max="100" step="1">
         </label>
-        <label>Volumes (split usable evenly)
+        <label><span data-i18n="volumes"></span>
           <input type="number" id="g-vols" value="2" min="1" max="64" step="1">
         </label>
       </div>
 
       <div class="card">
-        <h2>Drives per server</h2>
-        <p class="hint">Fastest media present becomes cache automatically (zero usable capacity).</p>
-        <div class="drive-row header"><span>Type</span><span>Count</span><span>Size each</span></div>
+        <h2 data-i18n="drivesPerServer"></h2>
+        <p class="hint" data-i18n="hintCache"></p>
+        <div class="drive-row header"><span data-i18n="colType"></span><span data-i18n="colCount"></span><span data-i18n="colSize"></span></div>
         <div class="drive-row">
-          <span>NVMe (cache)</span>
+          <span data-i18n="rowNvme"></span>
           <input type="number" id="g-nvme-n" value="2" min="0" max="24" step="1" aria-label="NVMe count per server">
           <select id="g-nvme-s" aria-label="NVMe size">
             <option value="0">—</option>
@@ -60,7 +66,7 @@
           </select>
         </div>
         <div class="drive-row">
-          <span>SSD (cache or capacity)</span>
+          <span data-i18n="rowSsd"></span>
           <input type="number" id="g-ssd-n" value="2" min="0" max="24" step="1" aria-label="SSD count per server">
           <select id="g-ssd-s" aria-label="SSD size">
             <option value="0">—</option>
@@ -72,7 +78,7 @@
           </select>
         </div>
         <div class="drive-row">
-          <span>SAS spinning (capacity)</span>
+          <span data-i18n="rowSas"></span>
           <input type="number" id="g-sas-n" value="4" min="0" max="48" step="1" aria-label="SAS count per server">
           <select id="g-sas-s" aria-label="SAS size">
             <option value="0">—</option>
@@ -84,22 +90,22 @@
             <option value="20">20 TB</option>
           </select>
         </div>
-        <button class="primary" onclick="calcGet()">Calculate</button>
+        <button class="primary" onclick="calcGet()" data-i18n="calculate"></button>
       </div>
     </div>
 
     <div class="card results" id="g-results" hidden>
-      <h2>Result</h2>
+      <h2 data-i18n="result"></h2>
       <div class="bignums">
-        <div><span id="g-usable">–</span><label>usable (TB)</label></div>
-        <div><span id="g-pervol">–</span><label>per volume (TB)</label></div>
-        <div><span id="g-eff">–</span><label>efficiency</label></div>
+        <div><span id="g-usable">–</span><label data-i18n="usableTB"></label></div>
+        <div><span id="g-pervol">–</span><label data-i18n="perVolTB"></label></div>
+        <div><span id="g-eff">–</span><label data-i18n="efficiency"></label></div>
       </div>
       <table class="breakdown">
-        <tr><td>Raw pool</td><td id="g-raw">–</td></tr>
-        <tr><td>Cache (not usable)</td><td id="g-cache">–</td></tr>
-        <tr><td>Capacity tiers</td><td id="g-tiers">–</td></tr>
-        <tr><td>Reserve held back</td><td id="g-reserve">–</td></tr>
+        <tr><td data-i18n="rawPool"></td><td id="g-raw">–</td></tr>
+        <tr><td data-i18n="cacheRow"></td><td id="g-cache">–</td></tr>
+        <tr><td data-i18n="tiersRow"></td><td id="g-tiers">–</td></tr>
+        <tr><td data-i18n="reserveRow"></td><td id="g-reserve">–</td></tr>
       </table>
       <ul class="warnings" id="g-warnings"></ul>
     </div>
@@ -109,46 +115,46 @@
   <section id="mode-need" hidden>
     <div class="grid">
       <div class="card">
-        <h2>Target</h2>
-        <label>Usable capacity wanted (TB)
+        <h2 data-i18n="target"></h2>
+        <label><span data-i18n="usableWanted"></span>
           <input type="number" id="n-target" value="10" min="0.5" step="0.5">
         </label>
-        <label>Nodes
+        <label><span data-i18n="nodes"></span>
           <input type="number" id="n-nodes" value="2" min="2" max="16" step="1">
         </label>
-        <label>Resiliency
+        <label><span data-i18n="resiliency"></span>
           <select id="n-res">
-            <option value="Mirror" selected>Mirror — 50%</option>
-            <option value="NestedMirror">Nested mirror — 25%</option>
-            <option value="NestedParity">Nested parity — ~35–40%</option>
+            <option value="Mirror" data-i18n="resMs"></option>
+            <option value="NestedMirror" data-i18n="resNMs"></option>
+            <option value="NestedParity" data-i18n="resNPs"></option>
           </select>
         </label>
-        <label>Capacity drive
+        <label><span data-i18n="capDrive"></span>
           <select id="n-media" onchange="updateNeedSizes()">
-            <option value="SAS" selected>SAS spinning</option>
-            <option value="SSD">SSD (all-flash, or capacity under NVMe cache)</option>
+            <option value="SAS" data-i18n="mediaSas"></option>
+            <option value="SSD" data-i18n="mediaSsd"></option>
           </select>
         </label>
-        <label>Drive size
+        <label><span data-i18n="driveSize"></span>
           <select id="n-size"></select>
         </label>
-        <label>Reserve override %
+        <label><span data-i18n="reservePct"></span>
           <input type="number" id="n-reservepct" value="20" min="0" max="100" step="1">
         </label>
-        <button class="primary" onclick="calcNeed()">Calculate</button>
+        <button class="primary" onclick="calcNeed()" data-i18n="calculate"></button>
       </div>
     </div>
 
     <div class="card results" id="n-results" hidden>
-      <h2>Shopping list (per server)</h2>
+      <h2 data-i18n="shoppingList"></h2>
       <div class="bignums">
-        <div><span id="n-count">–</span><label id="n-count-label">SAS drives</label></div>
-        <div><span id="n-yield">–</span><label>usable this gives (TB)</label></div>
+        <div><span id="n-count">–</span><label id="n-count-label">–</label></div>
+        <div><span id="n-yield">–</span><label data-i18n="yieldTB"></label></div>
       </div>
       <table class="breakdown">
-        <tr><td>Raw pool (cluster)</td><td id="n-raw">–</td></tr>
-        <tr><td>Reserve held back</td><td id="n-reserve">–</td></tr>
-        <tr><td>Cache to add</td><td id="n-cache">–</td></tr>
+        <tr><td data-i18n="rawCluster"></td><td id="n-raw">–</td></tr>
+        <tr><td data-i18n="reserveRow"></td><td id="n-reserve">–</td></tr>
+        <tr><td data-i18n="cacheToAdd"></td><td id="n-cache">–</td></tr>
       </table>
       <ul class="warnings" id="n-warnings"></ul>
     </div>
@@ -157,25 +163,25 @@
 
 <section class="perf">
   <div class="card">
-    <h2>Performance cheat sheet</h2>
+    <h2 data-i18n="perfTitle"></h2>
     <table class="breakdown perf-table">
-      <tr><th></th><th>Mirror (50%)</th><th>Nested mirror (25%)</th><th>Nested parity (~35–40%)</th></tr>
-      <tr><td>Read latency</td><td>Lowest</td><td>Lowest (any of 4 copies)</td><td>Fast recent, slower aged</td></tr>
-      <tr><td>Sustained random writes</td><td>Highest</td><td>Highest</td><td>Lowest</td></tr>
-      <tr><td>Backend writes / guest write</td><td>2×</td><td>4×</td><td>~1.2–2× + CPU</td></tr>
-      <tr><td>Survives</td><td>1 failure</td><td>2 failures</td><td>2 failures</td></tr>
-      <tr><td>Best for</td><td>Hot SSD volumes</td><td>Max safety</td><td>Cold/bulk SAS volumes</td></tr>
+      <tr><th></th><th>Mirror (50%)</th><th data-i18n="perfNestedM"></th><th data-i18n="perfNestedP"></th></tr>
+      <tr><td data-i18n="perfRead"></td><td data-i18n="perfReadM"></td><td data-i18n="perfReadNM"></td><td data-i18n="perfReadNP"></td></tr>
+      <tr><td data-i18n="perfWrite"></td><td data-i18n="perfWriteM"></td><td data-i18n="perfWriteNM"></td><td data-i18n="perfWriteNP"></td></tr>
+      <tr><td data-i18n="perfAmp"></td><td>2×</td><td>4×</td><td data-i18n="perfAmpNP"></td></tr>
+      <tr><td data-i18n="perfSurvives"></td><td data-i18n="perfSurvivesM"></td><td data-i18n="perfSurvivesN"></td><td data-i18n="perfSurvivesN"></td></tr>
+      <tr><td data-i18n="perfBest"></td><td data-i18n="perfBestM"></td><td data-i18n="perfBestNM"></td><td data-i18n="perfBestNP"></td></tr>
     </table>
     <ul class="takeaways">
-      <li>Size the parity mirror share to your biggest single burst (daily backup + margin), not the average — overflowing it drops throughput until destaging catches up.</li>
-      <li>An SSD cache flatters SAS parity: random writes coalesce in SSD and destage sequentially. Mirror-on-SSD + parity-on-SAS is the sweet spot.</li>
+      <li data-i18n="takeaway1"></li>
+      <li data-i18n="takeaway2"></li>
     </ul>
   </div>
 </section>
 
 <footer>
-  <p>Math mirrors <code>Get-S2DVolumeEfficiency</code> / <code>Get-S2DCapacityReserve</code> (1 TB = 1000⁴ bytes, decimal like vendors).
-  Verify with <code>-WhatIf</code> before deploying. <a href="https://github.com/jmaillot/deploy-s2d-v2">deploy-s2d-v2</a></p>
+  <p data-i18n-html="footer"></p>
+  <p><a href="https://github.com/jmaillot/deploy-s2d-v2">deploy-s2d-v2</a></p>
 </footer>
 
 <script src="calculator.js"></script>
