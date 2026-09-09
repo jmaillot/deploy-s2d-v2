@@ -52,12 +52,20 @@
 
       <div class="card">
         <h2 data-i18n="drivesPerServer"></h2>
+        <label><span data-i18n="presetLabel"></span>
+          <select id="g-preset" onchange="applyPreset()">
+            <option value="custom" data-i18n="presetCustom"></option>
+            <option value="ssd-sas" data-i18n="presetSsdSas"></option>
+            <option value="nvme" data-i18n="presetNvme"></option>
+            <option value="flash" data-i18n="presetFlash"></option>
+          </select>
+        </label>
         <p class="hint" data-i18n="hintCache"></p>
         <div class="drive-row header"><span data-i18n="colType"></span><span data-i18n="colCount"></span><span data-i18n="colSize"></span></div>
         <div class="drive-row">
           <span data-i18n="rowNvme"></span>
-          <input type="number" id="g-nvme-n" value="2" min="0" max="24" step="1" aria-label="NVMe count per server">
-          <select id="g-nvme-s" aria-label="NVMe size">
+          <input type="number" id="g-nvme-n" value="2" min="0" max="24" step="1" aria-label="NVMe count per server" onchange="presetCustom()">
+          <select id="g-nvme-s" aria-label="NVMe size" onchange="presetCustom()">
             <option value="0">—</option>
             <option value="0.8">800 GB</option>
             <option value="1.6" selected>1.6 TB</option>
@@ -67,8 +75,8 @@
         </div>
         <div class="drive-row">
           <span data-i18n="rowSsd"></span>
-          <input type="number" id="g-ssd-n" value="2" min="0" max="24" step="1" aria-label="SSD count per server">
-          <select id="g-ssd-s" aria-label="SSD size">
+          <input type="number" id="g-ssd-n" value="2" min="0" max="24" step="1" aria-label="SSD count per server" onchange="presetCustom()">
+          <select id="g-ssd-s" aria-label="SSD size" onchange="presetCustom()">
             <option value="0">—</option>
             <option value="0.8" selected>800 GB</option>
             <option value="1.6">1.6 TB</option>
@@ -79,8 +87,8 @@
         </div>
         <div class="drive-row">
           <span data-i18n="rowSas"></span>
-          <input type="number" id="g-sas-n" value="4" min="0" max="48" step="1" aria-label="SAS count per server">
-          <select id="g-sas-s" aria-label="SAS size">
+          <input type="number" id="g-sas-n" value="4" min="0" max="48" step="1" aria-label="SAS count per server" onchange="presetCustom()">
+          <select id="g-sas-s" aria-label="SAS size" onchange="presetCustom()">
             <option value="0">—</option>
             <option value="2">2 TB</option>
             <option value="4" selected>4 TB</option>
@@ -105,6 +113,7 @@
         <tr><td data-i18n="rawPool"></td><td id="g-raw">–</td></tr>
         <tr><td data-i18n="cacheRow"></td><td id="g-cache">–</td></tr>
         <tr><td data-i18n="tiersRow"></td><td id="g-tiers">–</td></tr>
+        <tr><td data-i18n="nvmeRow"></td><td id="g-nvme">–</td></tr>
         <tr><td data-i18n="reserveRow"></td><td id="g-reserve">–</td></tr>
       </table>
       <ul class="warnings" id="g-warnings"></ul>

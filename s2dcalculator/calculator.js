@@ -29,6 +29,17 @@ en: {
   rowNvme: "NVMe (cache)",
   rowSsd: "SSD (cache or capacity)",
   rowSas: "SAS spinning (capacity)",
+  presetLabel: "SSD layout preset",
+  presetCustom: "Custom (manual drives)",
+  presetSsdSas: "SSD + SAS (SSD caches SAS)",
+  presetNvme: "NVMe + SSD + SAS (two tiers)",
+  presetFlash: "All-flash SSD (no cache)",
+  nvmeRow: "NVMe recommendation",
+  nvmeActiveBoth: "Active — SSD and SAS volumes side by side.",
+  nvmeActiveSas: "Active — NVMe caches SAS capacity.",
+  nvmeActiveSsd: "Active — NVMe write cache for SSD capacity.",
+  nvmeSkipFlash: "Skip — no NVMe needed (optional write-only cache for sustained heavy writes).",
+  nvmeAddUnlock: "Add 2× NVMe/server (working-set sized) to unlock SSD volumes next to SAS — otherwise the SSD cache is enough.",
   calculate: "Calculate",
   result: "Result",
   usableTB: "usable (TB)", perVolTB: "per volume (TB)", efficiency: "efficiency",
@@ -96,6 +107,17 @@ fr: {
   rowNvme: "NVMe (cache)",
   rowSsd: "SSD (cache ou capacité)",
   rowSas: "SAS rotatifs (capacité)",
+  presetLabel: "Modèle SSD",
+  presetCustom: "Personnalisé (disques manuels)",
+  presetSsdSas: "SSD + SAS (SSD en cache du SAS)",
+  presetNvme: "NVMe + SSD + SAS (deux tiers)",
+  presetFlash: "Tout-flash SSD (sans cache)",
+  nvmeRow: "Recommandation NVMe",
+  nvmeActiveBoth: "Actif — volumes SSD et SAS côte à côte.",
+  nvmeActiveSas: "Actif — le NVMe cache le SAS.",
+  nvmeActiveSsd: "Actif — cache écriture NVMe pour le SSD.",
+  nvmeSkipFlash: "Inutile — pas de NVMe (cache écriture seule en option pour écritures soutenues).",
+  nvmeAddUnlock: "Ajoutez 2× NVMe/serveur (taille de l'ensemble de travail) pour des volumes SSD à côté du SAS — sinon le cache SSD suffit.",
   calculate: "Calculer",
   result: "Résultat",
   usableTB: "utiles (To)", perVolTB: "par volume (To)", efficiency: "rendement",
@@ -261,6 +283,42 @@ function updateNeedSizes() {
   sel.value = NEED_SIZES[media].includes(prev) ? prev : NEED_SIZES[media][1];
 }
 
+/* SSD layout presets fill the drive rows; manual edits revert to Custom. */
+function applyPreset() {
+  const p = document.getElementById("g-preset").value;
+  const set = (id, v) => { document.getElementById(id).value = v; };
+  if (p === "ssd-sas") {
+    set("g-nvme-n", 0); set("g-nvme-s", 0);
+    set("g-ssd-n", 2); set("g-ssd-s", 0.8);
+    set("g-sas-n", 4); set("g-sas-s", 4);
+  } else if (p === "nvme") {
+    set("g-nvme-n", 2); set("g-nvme-s", 1.6);
+    set("g-ssd-n", 2); set("g-ssd-s", 1.92);
+    set("g-sas-n", 4); set("g-sas-s", 4);
+  } else if (p === "flash") {
+    set("g-nvme-n", 0); set("g-nvme-s", 0);
+    set("g-ssd-n", 4); set("g-ssd-s", 1.92);
+    set("g-sas-n", 0); set("g-sas-s", 0);
+  }
+}
+
+function presetCustom() {
+  document.getElementById("g-preset").value = "custom";
+}
+
+/* NVMe add-or-skip verdict for the result table. */
+function nvmeAdvice(drives, capMedia) {
+  const nv = drives.find((d) => d.media === "NVMe");
+  if (nv && nv.n > 0 && nv.sizeTB > 0) {
+    if (capMedia.includes("SSD") && capMedia.includes("SAS")) return t("nvmeActiveBoth");
+    if (capMedia.includes("SAS")) return t("nvmeActiveSas");
+    return t("nvmeActiveSsd");
+  }
+  if (capMedia.includes("SSD") && !capMedia.includes("SAS")) return t("nvmeSkipFlash");
+  if (capMedia.includes("SAS")) return t("nvmeAddUnlock");
+  return null;
+}
+
 function num(id) {
   const v = parseFloat(document.getElementById(id).value);
   return Number.isFinite(v) ? v : 0;
@@ -344,6 +402,7 @@ function calcGet() {
   document.getElementById("g-raw").textContent = fmt(rawTB);
   document.getElementById("g-cache").textContent = fmt(cacheTB) + (cacheTB > 0 ? " " + t("cacheNote") : "");
   document.getElementById("g-tiers").textContent = t("tiersCap", { m: capMedia.join(" + ") });
+  document.getElementById("g-nvme").textContent = nvmeAdvice(drives, capMedia) || "–";
   document.getElementById("g-reserve").textContent = fmt(reserve);
 
   if (usable / vols > 64) items.push(["warn", t("warn64vol")]);
