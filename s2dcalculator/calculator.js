@@ -39,7 +39,7 @@ en: {
   nvmeActiveSas: "Active — NVMe caches SAS capacity.",
   nvmeActiveSsd: "Active — NVMe write cache for SSD capacity.",
   nvmeSkipFlash: "Skip — no NVMe needed (optional write-only cache for sustained heavy writes).",
-  nvmeAddUnlock: "Add 2× NVMe/server (working-set sized) to unlock SSD volumes next to SAS — otherwise the SSD cache is enough.",
+  nvmeAddUnlock: "Add 2× {per} NVMe/server (≥ {total}/server) to unlock SSD volumes next to SAS — otherwise the SSD cache is enough.",
   calculate: "Calculate",
   result: "Result",
   usableTB: "usable (TB)", perVolTB: "per volume (TB)", efficiency: "efficiency",
@@ -59,7 +59,7 @@ en: {
   cacheToAdd: "Cache to add",
   resultDrives: "{media} drives",
   cacheSAS: "2× SSD ≥ {size}/server (~10% of SAS)",
-  cacheSSD: "None if all-flash; 2× NVMe/server if SSD capacity under NVMe cache",
+  cacheSSD: "None — all-flash without cache.",
   cacheNVMeReq: "2× NVMe ≥ {per}/server (≥ {total}/server, ~5% of SSD) — required, SSD is capacity here",
   perfTitle: "Performance cheat sheet",
   perfNestedM: "Nested mirror (25%)", perfNestedP: "Nested parity (~35–40%)",
@@ -119,7 +119,7 @@ fr: {
   nvmeActiveSas: "Actif — le NVMe cache le SAS.",
   nvmeActiveSsd: "Actif — cache écriture NVMe pour le SSD.",
   nvmeSkipFlash: "Inutile — pas de NVMe (cache écriture seule en option pour écritures soutenues).",
-  nvmeAddUnlock: "Ajoutez 2× NVMe/serveur (taille de l'ensemble de travail) pour des volumes SSD à côté du SAS — sinon le cache SSD suffit.",
+  nvmeAddUnlock: "Ajoutez 2× {per} NVMe/serveur (≥ {total}/serveur) pour des volumes SSD à côté du SAS — sinon le cache SSD suffit.",
   calculate: "Calculer",
   result: "Résultat",
   usableTB: "utiles (To)", perVolTB: "par volume (To)", efficiency: "rendement",
@@ -139,7 +139,7 @@ fr: {
   cacheToAdd: "Cache à ajouter",
   resultDrives: "disques {media}",
   cacheSAS: "2× SSD ≥ {size}/serveur (~10 % du SAS)",
-  cacheSSD: "Rien si tout-flash ; 2× NVMe/serveur si SSD sous cache NVMe",
+  cacheSSD: "Aucun — tout-flash sans cache.",
   cacheNVMeReq: "2× NVMe ≥ {per}/serveur (≥ {total}/serveur, ~5 % du SSD) — obligatoire, le SSD est capacitif ici",
   perfTitle: "Aide-mémoire performances",
   perfNestedM: "Miroir imbriqué (25 %)", perfNestedP: "Parité imbriquée (~35–40 %)",
@@ -328,7 +328,15 @@ function nvmeAdvice(drives, capMedia) {
     return t("nvmeActiveSsd");
   }
   if (capMedia.includes("SSD") && !capMedia.includes("SAS")) return t("nvmeSkipFlash");
-  if (capMedia.includes("SAS")) return t("nvmeAddUnlock");
+  if (capMedia.includes("SAS")) {
+    const cnt = (m) => drives.filter((d) => d.media === m).reduce((a, d) => a + d.n, 0);
+    const need = 0.1 * cnt("SAS") * largestOf(drives, "SAS") + 0.05 * cnt("SSD") * largestOf(drives, "SSD");
+    const total = Math.ceil(need * 10) / 10;
+    return t("nvmeAddUnlock", {
+      per: sizeLabel(stdPick(need / 2, NVME_STD)),
+      total: String(total).replace(".", LANG === "fr" ? "," : ".") + " " + unit()
+    });
+  }
   return null;
 }
 
