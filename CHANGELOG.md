@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- Mocked runtime tests for the volume path (`ClusterVolume.Tests.ps1`):
+  Auto sizing, tier ensure-or-skip, per-volume calls, Fixed guard
+
 ## [2.0.0] - 2026-09-09
 ### Added
 - `-Resiliency Mirror|NestedMirror|NestedParity` on `New-S2DCluster`
