@@ -50,8 +50,8 @@ en: {
   usableWanted: "Usable capacity wanted (TB)",
   capDrive: "Capacity drive",
   mediaSas: "SAS spinning",
-  mediaSsd: "SSD (all-flash, or capacity under NVMe cache)",
-  mediaNvme: "NVMe (all-flash)",
+  mediaSsd: "SSD (no cache)",
+  mediaSsdCached: "SSD Full Cache (capacity under NVMe cache)",
   driveSize: "Drive size",
   shoppingList: "Shopping list (per server)",
   yieldTB: "usable this gives (TB)",
@@ -60,7 +60,7 @@ en: {
   resultDrives: "{media} drives",
   cacheSAS: "2× SSD ≥ {size}/server (~10% of SAS)",
   cacheSSD: "None if all-flash; 2× NVMe/server if SSD capacity under NVMe cache",
-  cacheNVMe: "None if all-NVMe (optional write-only cache only for mixed endurance)",
+  cacheNVMeReq: "2× NVMe ≥ {per}/server (≥ {total}/server, ~5% of SSD) — required, SSD is capacity here",
   perfTitle: "Performance cheat sheet",
   perfNestedM: "Nested mirror (25%)", perfNestedP: "Nested parity (~35–40%)",
   perfRead: "Read latency", perfReadM: "Lowest", perfReadNM: "Lowest (any of 4 copies)", perfReadNP: "Fast recent, slower aged",
@@ -74,7 +74,7 @@ en: {
   errNoCapacity: "No capacity drives: every server needs flash (SSD/NVMe) for cache plus capacity drives. SAS alone is not a valid S2D layout.",
   warnCapServer: "Only ~{n} capacity drives per server — Microsoft minimum is 4, and nested resiliency needs 4+.",
   warnCacheCount: "Only {n} cache drive(s) per server — use at least 2 for redundancy.",
-  warnCacheSmall: "Cache ({cache}/server) is under ~10% of SAS capacity ({sas}/server) — hot working sets may spill to spinning disks.",
+  warnCacheSmall: "Cache ({have}/server) is under the minimum ({need}/server: ~10% of SAS + ~5% of NVMe-cached SSD) — add at least {missing}/server (e.g. 2× {per}).",
   warn400: "Over 400 TB per server — resync after reboot/update takes very long. Microsoft recommends staying near 400 TB/server.",
   warn64vol: "Per-volume size exceeds the 64 TB Microsoft recommendation (10 TB for VSS/Volsnap backups) — raise the volume count.",
   tipNested: "Tip: for production 2-node clusters Microsoft recommends nested resiliency (survives 2 failures instead of 1).",
@@ -130,8 +130,8 @@ fr: {
   usableWanted: "Capacité utile voulue (To)",
   capDrive: "Disque capacitif",
   mediaSas: "SAS rotatifs",
-  mediaSsd: "SSD (tout-flash, ou capacité sous cache NVMe)",
-  mediaNvme: "NVMe (tout-flash)",
+  mediaSsd: "SSD (sans cache)",
+  mediaSsdCached: "SSD Full Cache (capacité sous cache NVMe)",
   driveSize: "Taille disque",
   shoppingList: "Liste d'achats (par serveur)",
   yieldTB: "utile obtenue (To)",
@@ -140,21 +140,21 @@ fr: {
   resultDrives: "disques {media}",
   cacheSAS: "2× SSD ≥ {size}/serveur (~10 % du SAS)",
   cacheSSD: "Rien si tout-flash ; 2× NVMe/serveur si SSD sous cache NVMe",
-  cacheNVMe: "Rien si tout-NVMe (cache écriture seule en option selon endurance)",
-  perfTitle: "Aide-mémoire performance",
+  cacheNVMeReq: "2× NVMe ≥ {per}/serveur (≥ {total}/serveur, ~5 % du SSD) — obligatoire, le SSD est capacitif ici",
+  perfTitle: "Aide-mémoire performances",
   perfNestedM: "Miroir imbriqué (25 %)", perfNestedP: "Parité imbriquée (~35–40 %)",
-  perfRead: "Latence lecture", perfReadM: "La plus basse", perfReadNM: "La plus basse (4 copies)", perfReadNP: "Rapide récent, plus lent vieilli",
+  perfRead: "Latence en lecture", perfReadM: "La plus basse", perfReadNM: "La plus basse (n'importe laquelle des 4 copies)", perfReadNP: "Rapide pour les données récentes, plus lent pour les anciennes",
   perfWrite: "Écritures aléatoires soutenues", perfWriteM: "Max", perfWriteNM: "Max", perfWriteNP: "Min",
-  perfAmp: "Écritures backend / écriture", perfAmpNP: "~1,2–2× + CPU",
+  perfAmp: "Écritures internes par écriture", perfAmpNP: "~1,2–2× + CPU",
   perfSurvives: "Survit à", perfSurvivesM: "1 panne", perfSurvivesN: "2 pannes",
-  perfBest: "Idéal pour", perfBestM: "Volumes SSD chauds", perfBestNM: "Sécurité max", perfBestNP: "Volumes SAS froids",
-  takeaway1: "Dimensionnez la part miroir sur la plus grosse rafale unique (sauvegarde quotidienne + marge), pas sur la moyenne — la déborder effondre le débit jusqu'au rattrapage.",
-  takeaway2: "Un cache SSD sublime la parité SAS : les écritures aléatoires fusionnent en SSD puis descendent en séquentiel. Mirror-sur-SSD + parité-sur-SAS est le point d'équilibre.",
+  perfBest: "Idéal pour", perfBestM: "Volumes chauds sur SSD", perfBestNM: "Sécurité maximale", perfBestNP: "Volumes froids sur SAS",
+  takeaway1: "Dimensionnez la part miroir sur la plus grosse rafale ponctuelle (sauvegarde quotidienne + marge), pas sur la moyenne — la dépasser effondre le débit jusqu'à absorption du retard.",
+  takeaway2: "Un cache SSD améliore grandement la parité SAS : les écritures aléatoires sont absorbées en SSD puis écrites en séquentiel. L'association Mirror sur SSD + parité sur SAS est le compromis idéal.",
   footer: "Calculs identiques à <code>Get-S2DVolumeEfficiency</code> / <code>Get-S2DCapacityReserve</code> (1 To = 1000⁴ octets, décimal comme les constructeurs). Vérifiez avec <code>-WhatIf</code> avant de déployer.",
   errNoCapacity: "Aucun disque capacitif : chaque serveur a besoin de flash (SSD/NVMe) pour le cache plus des disques capacitatifs. SAS seul n'est pas valide en S2D.",
   warnCapServer: "Seulement ~{n} disques capacitatifs par serveur — minimum Microsoft 4, et la résilience imbriquée exige 4+.",
   warnCacheCount: "Seulement {n} disque(s) cache par serveur — au moins 2 pour la redondance.",
-  warnCacheSmall: "Cache ({cache}/serveur) sous ~10 % de la capacité SAS ({sas}/serveur) — les données chaudes peuvent déborder sur disques.",
+  warnCacheSmall: "Cache ({have}/serveur) sous le minimum ({need}/serveur : ~10 % du SAS + ~5 % du SSD sous NVMe) — ajoutez au moins {missing}/serveur (ex. 2× {per}).",
   warn400: "Plus de 400 To par serveur — la resync après redémarrage/MAJ est très longue. Microsoft recommande ~400 To/serveur.",
   warn64vol: "Taille par volume au-delà des 64 To Microsoft (10 To pour sauvegardes VSS/Volsnap) — augmentez le nombre de volumes.",
   tipNested: "Astuce : en production à 2 nœuds, Microsoft recommande la résilience imbriquée (2 pannes au lieu d'1).",
@@ -266,8 +266,16 @@ function showMode(mode) {
 const NEED_SIZES = {
   SAS: [2, 4, 8, 12, 16, 20],
   SSD: [0.8, 1.6, 1.92, 3.84, 7.68],
-  NVMe: [0.8, 1.6, 3.2, 6.4]
+  SSDCached: [0.8, 1.6, 1.92, 3.84, 7.68]
 };
+const SSD_STD = [0.8, 1.6, 1.92, 3.84, 7.68];
+const NVME_STD = [0.8, 1.6, 3.2, 6.4];
+
+/* Smallest standard size covering need (TB), else rounded raw need. */
+function stdPick(need, list) {
+  for (const s of list) if (s >= need - 1e-9) return s;
+  return Math.ceil(need * 10) / 10;
+}
 
 function sizeLabel(s) {
   if (s >= 1) return String(s).replace(".", LANG === "fr" ? "," : ".") + " " + unit();
@@ -362,8 +370,17 @@ function checkLayout(nodes, drives, capMedia, capPerServer, rawTB) {
   const cacheTB = drives
     .filter((d) => !capMedia.includes(d.media))
     .reduce((a, d) => a + d.n * d.sizeTB, 0);
-  if (sasTB > 0 && cacheTB < 0.1 * sasTB) {
-    items.push(["warn", t("warnCacheSmall", { cache: fmt(cacheTB), sas: fmt(sasTB) })]);
+  const hasNvmeCache = drives.some((d) => d.media === "NVMe" && d.n > 0 && d.sizeTB > 0);
+  const ssdCapTB = capMedia.includes("SSD") ? countOf("SSD") * largestOf(drives, "SSD") : 0;
+  const sasCapTB = capMedia.includes("SAS") ? sasTB : 0;
+  let cacheNeed = 0.1 * sasCapTB;
+  if (ssdCapTB > 0 && hasNvmeCache) cacheNeed += 0.05 * ssdCapTB;
+  if (cacheNeed > 0 && cacheTB < cacheNeed) {
+    const missing = cacheNeed - cacheTB;
+    items.push(["warn", t("warnCacheSmall", {
+      have: fmt(cacheTB), need: fmt(cacheNeed),
+      missing: fmt(missing), per: sizeLabel(stdPick(missing / 2, SSD_STD))
+    })]);
   }
   if (rawTB / nodes > 400) {
     items.push(["warn", t("warn400")]);
@@ -450,19 +467,25 @@ function calcNeed() {
     return;
   }
 
+  const mediaLabel = media === "SSDCached" ? "SSD" : media;
   document.getElementById("n-count").textContent = found + "× " + sizeLabel(size);
-  document.getElementById("n-count-label").textContent = t("resultDrives", { media });
+  document.getElementById("n-count-label").textContent = t("resultDrives", { media: mediaLabel });
   document.getElementById("n-yield").textContent = fmtNum(foundUsable);
   document.getElementById("n-raw").textContent = fmt(foundRaw);
   document.getElementById("n-reserve").textContent = fmt(foundReserve);
 
   if (media === "SAS") {
     const cacheEach = Math.max(0.8, Math.round((found * size * 0.1) * 10) / 10);
-    document.getElementById("n-cache").textContent = t("cacheSAS", { size: String(cacheEach).replace(".", LANG === "fr" ? "," : ".") + " " + unit() });
+    document.getElementById("n-cache").textContent = t("cacheSAS", { size: sizeLabel(cacheEach) });
   } else if (media === "SSD") {
     document.getElementById("n-cache").textContent = t("cacheSSD");
   } else {
-    document.getElementById("n-cache").textContent = t("cacheNVMe");
+    const needTB = found * size * 0.05;
+    const per = stdPick(needTB / 2, NVME_STD);
+    document.getElementById("n-cache").textContent = t("cacheNVMeReq", {
+      per: sizeLabel(per),
+      total: String(Math.ceil(needTB * 10) / 10).replace(".", LANG === "fr" ? "," : ".") + " " + unit()
+    });
   }
   if (found < 4) items.push(["warn", t("warnBelow4need")]);
   if (foundUsable > 64) items.push(["warn", t("warn64need")]);
