@@ -3,9 +3,8 @@
 # creation calls, and the Fixed footprint throw. Pure helpers have
 # their own unit tests; this suite pins the wiring between them.
 #
-# Note: volume creation is captured by redefining the internal
-# New-S2DVolume inside module state (Pester Mock does not reliably
-# intercept module-internal calls here). External cmdlets use Mock.
+# Note: volume creation is captured through the New-S2DVolume test seam
+# ($script:S2DCaptureVolumes in module state). External cmdlets use Mock.
 BeforeAll {
     Import-Module "$PSScriptRoot/../../Deploy-S2D/Deploy-S2D.psm1" -Force
 
@@ -43,16 +42,12 @@ BeforeAll {
 
     function script:Reset-VolumeCapture {
         & (Get-Module Deploy-S2D) {
-            $script:capturedVolumes = @()
-            function New-S2DVolume {
-                param($Parameters)
-                $script:capturedVolumes += $Parameters
-            }
+            $script:S2DCaptureVolumes = [System.Collections.ArrayList]::new()
         }
     }
 
     function script:Get-VolumeCapture {
-        & (Get-Module Deploy-S2D) { $script:capturedVolumes }
+        & (Get-Module Deploy-S2D) { $script:S2DCaptureVolumes }
     }
 }
 
