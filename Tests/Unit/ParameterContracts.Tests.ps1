@@ -44,4 +44,22 @@ Describe 'Parameter contracts' {
             (Get-Command $n).Parameters.Keys | Should -Contain 'WhatIf'
         }
     }
+
+    It 'volume params carry v2 defaults and bounds' {
+        $params = (Get-Command New-S2DCluster).Parameters
+        $params['VolumeCount'].Attributes.Where({ $_ -is [System.Management.Automation.ValidateRangeAttribute] }).MaxRange | Should -Be 64
+        $params['Resiliency'].Attributes.Where({ $_ -is [System.Management.Automation.ValidateSetAttribute] }).ValidValues | Should -Be @('Mirror', 'NestedMirror', 'NestedParity')
+        $params['NestedMirrorPercent'].Attributes.Where({ $_ -is [System.Management.Automation.ValidateRangeAttribute] }).MinRange | Should -Be 10
+        $params['StorageTier'].Attributes.Where({ $_ -is [System.Management.Automation.ValidateSetAttribute] }).ValidValues | Should -Be @('Auto', 'SSD', 'HDD')
+        $params['VolumeCount'].ParameterType | Should -Be ([int])
+        $params['Resiliency'].ParameterType | Should -Be ([string])
+        $params['NestedMirrorPercent'].ParameterType | Should -Be ([int])
+    }
+
+    It 'wrapper forwards v2 volume params' {
+        $params = (Get-Command Start-S2DDeployment).Parameters
+        foreach ($n in @('VolumeCount', 'Resiliency', 'NestedMirrorPercent', 'StorageTier')) {
+            $params.Keys | Should -Contain $n
+        }
+    }
 }

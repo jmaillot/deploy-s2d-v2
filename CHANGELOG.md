@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- `-Resiliency Mirror|NestedMirror|NestedParity` on `New-S2DCluster`
+  (nested survives 2 failures; cannot be converted in place later)
+- `-VolumeCount` (1-64, `-VolumeName` as prefix) so ownership distributes
+  (at least 1 volume per node); `-NestedMirrorPercent` (10-30, default 20)
+  and `-StorageTier Auto|SSD|HDD` for nested tier placement
+- Drive-based reserve floor (1 capacity drive/server up to 4, SSD+HDD when
+  both tiers exist); larger of floor and `-CapacityReservePercent` wins
+- Fixed-mode footprint validation (size/efficiency + reserve vs. pool free)
+  with 64 TB / 10 TB VSS guidance; sub-4-drives/server preflight warning
+- Verbose capacity plan printed before creation (usable GiB per resiliency)
+
 ## [1.7.0] - 2026-09-09
 ### Added
 - LiveMig: jumbo MTU, EEE off, DNS registration + NetBIOS off (same hygiene

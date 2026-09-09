@@ -73,8 +73,8 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
 ```
 
 Valide (`Test-Cluster`, français d'abord/anglais sinon), crée le cluster, configure
-le quorum, active S2D, crée le CSV en miroir (ReFS), contraint SMB Multichannel à
-StorageA/B, renomme les réseaux du cluster. Témoin cloud :
+le quorum, active S2D, crée le(s) volume(s) CSV (ReFS) avec la résilience choisie,
+contraint SMB Multichannel à StorageA/B, renomme les réseaux du cluster. Témoin cloud :
 
 ```powershell
 $key = Read-Host -AsSecureString
@@ -83,7 +83,11 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
 
 La clé est `SecureString` de bout en bout — déchiffrée uniquement pour l'appel
 quorum, effacée ensuite, jamais journalisée. Taille `Fixed` exige `-VolumeSize`
-(ex. `2TB`) ; `Auto` garde 20 % de réserve sauf `-UseFullPool`.
+par volume (ex. `2TB`) ; `Auto` répartit la capacité utile sur `-VolumeCount`
+volumes après réserve (plancher par disque contre 20 %, le plus grand gagne),
+sauf `-UseFullPool`. `-Resiliency NestedMirror|NestedParity` survit à 2 pannes
+(recommandation Microsoft pour 2 nœuds en production) au prix du rendement —
+le plan de capacité affiché avant création donne les Gio utiles par option.
 
 ## 3. Valider le déploiement
 

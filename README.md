@@ -68,8 +68,8 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
 ```
 
 Validates (`Test-Cluster`), creates the cluster, sets quorum, enables S2D,
-creates the mirrored CSV (ReFS), constrains SMB Multichannel to StorageA/B,
-renames cluster networks. Cloud witness instead:
+creates the CSV volume(s) (ReFS) with the selected resiliency, constrains
+SMB Multichannel to StorageA/B, renames cluster networks. Cloud witness instead:
 
 ```powershell
 $key = Read-Host -AsSecureString
@@ -77,8 +77,12 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
 ```
 
 The key is `SecureString` end to end — decrypted only for the quorum call,
-cleared after, never logged. `Fixed` sizing needs `-VolumeSize` (e.g. `2TB`);
-`Auto` keeps 20% reserve unless `-UseFullPool`.
+cleared after, never logged. `Fixed` sizing needs per-volume `-VolumeSize`
+(e.g. `2TB`); `Auto` splits usable capacity evenly across `-VolumeCount`
+volumes after reserve (drive-based floor vs. 20%, larger wins) unless
+`-UseFullPool`. `-Resiliency NestedMirror|NestedParity` survives 2 failures
+(Microsoft's production recommendation for 2 nodes) at lower efficiency —
+the capacity plan printed before creation shows usable GiB per option.
 
 ## 3. Validate the deployment
 

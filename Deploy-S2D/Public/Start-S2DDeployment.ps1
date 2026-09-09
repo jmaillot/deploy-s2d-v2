@@ -37,7 +37,15 @@ Cloud witness key as SecureString (Cluster phase, Cloud only).
 .PARAMETER FileShareWitness
 Witness UNC path (Cluster phase, FileShare only).
 .PARAMETER VolumeName
-CSV friendly name. Default CSV_S2D.
+CSV friendly name (prefix when VolumeCount > 1). Default CSV_S2D.
+.PARAMETER VolumeCount
+Number of CSV volumes (1-64). Default 1.
+.PARAMETER Resiliency
+Mirror (default), NestedMirror, or NestedParity.
+.PARAMETER NestedMirrorPercent
+Fast-tier mirror share for NestedParity. Default 20.
+.PARAMETER StorageTier
+Capacity media for nested tiers. Auto (default), SSD, or HDD.
 .PARAMETER VolumeSize
 Fixed size. Required when SizingMode is Fixed.
 .PARAMETER SizingMode
@@ -77,6 +85,12 @@ Start-S2DDeployment -ClusterName "CL-S2D" -ClusterNodes "S2D-01","S2D-02" -Clust
         [SecureString]$AzStorageKey,
         [string]$FileShareWitness = "",
         [string]$VolumeName = "CSV_S2D",
+        [int]$VolumeCount = 1,
+        [ValidateSet("Mirror","NestedMirror","NestedParity")]
+        [string]$Resiliency = "Mirror",
+        [int]$NestedMirrorPercent = 20,
+        [ValidateSet("Auto","SSD","HDD")]
+        [string]$StorageTier = "Auto",
         [string]$VolumeSize,
         [ValidateSet("Auto","Fixed")]
         [string]$SizingMode = "Auto",
@@ -101,7 +115,7 @@ Start-S2DDeployment -ClusterName "CL-S2D" -ClusterNodes "S2D-01","S2D-02" -Clust
         }
     } elseif ($RunPhase -eq "Cluster") {
         $p = @{}
-        foreach ($k in @('ClusterName','ClusterNodes','ClusterIP','WitnessType','AzStorageAccount','AzStorageKey','FileShareWitness','VolumeName','VolumeSize','SizingMode','CapacityReservePercent','UseFullPool','LogPath')) {
+        foreach ($k in @('ClusterName','ClusterNodes','ClusterIP','WitnessType','AzStorageAccount','AzStorageKey','FileShareWitness','VolumeName','VolumeCount','Resiliency','NestedMirrorPercent','StorageTier','VolumeSize','SizingMode','CapacityReservePercent','UseFullPool','LogPath')) {
             if ($PSBoundParameters.ContainsKey($k)) { $p[$k] = $PSBoundParameters[$k] }
         }
         if ($PSCmdlet.ShouldProcess("cluster", "New-S2DCluster")) {
