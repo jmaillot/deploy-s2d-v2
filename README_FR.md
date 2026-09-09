@@ -82,12 +82,48 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
 ```
 
 La clé est `SecureString` de bout en bout — déchiffrée uniquement pour l'appel
-quorum, effacée ensuite, jamais journalisée. Taille `Fixed` exige `-VolumeSize`
-par volume (ex. `2TB`) ; `Auto` répartit la capacité utile sur `-VolumeCount`
-volumes après réserve (plancher par disque contre 20 %, le plus grand gagne),
-sauf `-UseFullPool`. `-Resiliency NestedMirror|NestedParity` survit à 2 pannes
-(recommandation Microsoft pour 2 nœuds en production) au prix du rendement —
-le plan de capacité affiché avant création donne les Gio utiles par option.
+quorum, effacée ensuite, jamais journalisée.
+
+### Stockage : résilience, volumes et dimensionnement
+
+| `-Resiliency` | Rendement | Survit à | Quand l'utiliser |
+|---|---|---|---|
+| `Mirror` (défaut) | 50 % | 1 panne (disque ou nœud) | Labo, vitesse max, volumes SSD |
+| `NestedMirror` | 25 % | 2 pannes | 2 nœuds en production, sécurité max |
+| `NestedParity` | ~35-40 % | 2 pannes | 2 nœuds en production, équilibré (choix Microsoft) |
+
+Les volumes imbriqués ne se convertissent pas après coup — à choisir dès le
+départ. `-NestedMirrorPercent` (10-30, défaut 20) règle la part rapide des
+volumes `NestedParity` : plus haut favorise les rafales d'écriture, plus bas
+la capacité.
+
+**Volumes.** `-VolumeCount` (1-64, défaut 1) crée `Nom_01`, `Nom_02`… à
+partir de `-VolumeName` comme préfixe (1 conserve le nom exact). Au moins un
+volume par nœud pour répartir la propriété. Une seule valeur `-Resiliency` /
+`-StorageTier` s'applique à tous ; une par volume pour mixer — ex. miroir
+rapide sur SSD + parité économe sur SAS :
+
+```powershell
+New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -StorageTier SSD,HDD -Resiliency Mirror,NestedParity -SizingMode "Auto"
+```
+
+**Tiers.** S2D réserve le média le plus rapide comme cache : SSD + SAS seuls
+= un seul tier capacitif (SAS) — les données chaudes restent servies depuis
+le cache SSD lecture/écriture automatiquement. Des volumes SSD et SAS côte à
+côte exigent un cache dédié (2x NVMe par serveur suffisent) ; `-StorageTier`
+épingle alors les volumes (`SSD` chaud, `HDD` froid). `Auto` (défaut) prend
+HDD si présent, sinon SSD.
+
+**Dimensionnement.** `Auto` (défaut) répartit la capacité utile — chaque
+volume reçoit une part égale d'empreinte pool fois son rendement.
+`Fixed` exige `-VolumeSize` par volume (ex. `2TB`) et valide l'empreinte
+totale contre l'espace libre. Les deux gardent une réserve sauf
+`-UseFullPool` : un disque capacitif par serveur (max 4 ; SSD+HDD seulement
+avec cache NVMe/SCM, sinon HDD seul) contre `-CapacityReservePercent`
+(défaut 20) — le plus grand gagne. Avant toute création, le script affiche
+les Gio utiles par option de résilience. Volumes plafonnés à 64 To (10 To
+pour sauvegardes VSS/Volsnap) ; avertissement sous 4 disques capacitatifs
+par serveur.
 
 ## 3. Valider le déploiement
 
