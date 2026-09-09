@@ -10,7 +10,7 @@ BeforeAll {
     # replace them entirely, so no real host is ever touched.
     $externals = @(
         'Test-Cluster', 'Get-Cluster', 'Get-ClusterNode', 'Set-ClusterQuorum',
-        'Enable-ClusterS2D', 'Get-StoragePool', 'Get-VirtualDisk', 'New-Volume',
+        'Enable-ClusterS2D', 'Get-StoragePool', 'Get-VirtualDisk',
         'Get-StorageTier', 'New-StorageTier', 'Get-ClusterNetworkInterface',
         'Add-Content'
     )
@@ -35,7 +35,7 @@ BeforeAll {
     Mock -ModuleName Deploy-S2D Get-StorageTier -MockWith {}
     Mock -ModuleName Deploy-S2D Get-ClusterNetworkInterface -MockWith {}
     Mock -ModuleName Deploy-S2D Invoke-Command -MockWith {}
-    Mock -ModuleName Deploy-S2D New-Volume -MockWith {}
+    Mock -ModuleName Deploy-S2D New-S2DVolume -MockWith {}
     Mock -ModuleName Deploy-S2D New-StorageTier -MockWith {}
 }
 
@@ -56,8 +56,8 @@ Describe 'Cluster volumes Auto Mirror (mocked)' {
         # (32 - 8) x 50% = 12 TB.
         { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -Confirm:$false } |
             Should -Not -Throw
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-Volume -Times 1 -Exactly -ParameterFilter {
-            $Size -eq 12TB -and $ResiliencySettingName -eq 'Mirror'
+        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 1 -Exactly -ParameterFilter {
+            $Parameters.Size -eq 12TB -and $Parameters.ResiliencySettingName -eq 'Mirror'
         }
         Should -Invoke -ModuleName Deploy-S2D -CommandName New-StorageTier -Times 0 -Exactly
     }
@@ -68,8 +68,8 @@ Describe 'Cluster volumes Auto Mirror (mocked)' {
         Should -Invoke -ModuleName Deploy-S2D -CommandName New-StorageTier -Times 1 -Exactly -ParameterFilter {
             $FriendlyName -eq 'MirrorOnHDD' -and $NumberOfDataCopies -eq 2
         }
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-Volume -Times 1 -Exactly -ParameterFilter {
-            $Size -eq 12TB -and $StorageTierFriendlyNames -eq 'MirrorOnHDD'
+        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 1 -Exactly -ParameterFilter {
+            $Parameters.Size -eq 12TB -and $Parameters.StorageTierFriendlyNames -eq 'MirrorOnHDD'
         }
     }
 }
@@ -94,14 +94,14 @@ Describe 'Cluster volumes Auto NestedParity x2 mixed tiers (mocked)' {
         { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -VolumeName CSV -VolumeCount 2 -StorageTier SSD,HDD -Resiliency NestedParity -Confirm:$false } |
             Should -Not -Throw
         Should -Invoke -ModuleName Deploy-S2D -CommandName New-StorageTier -Times 4 -Exactly
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-Volume -Times 1 -Exactly -ParameterFilter {
-            $FriendlyName -eq 'CSV_01' -and $StorageTierFriendlyNames -contains 'NestedMirrorOnSSD' -and $StorageTierFriendlyNames -contains 'NestedParityOnSSD'
+        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 1 -Exactly -ParameterFilter {
+            $Parameters.FriendlyName -eq 'CSV_01' -and $Parameters.StorageTierFriendlyNames -contains 'NestedMirrorOnSSD' -and $Parameters.StorageTierFriendlyNames -contains 'NestedParityOnSSD'
         }
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-Volume -Times 1 -Exactly -ParameterFilter {
-            $FriendlyName -eq 'CSV_02' -and $StorageTierFriendlyNames -contains 'NestedMirrorOnHDD' -and $StorageTierFriendlyNames -contains 'NestedParityOnHDD'
+        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 1 -Exactly -ParameterFilter {
+            $Parameters.FriendlyName -eq 'CSV_02' -and $Parameters.StorageTierFriendlyNames -contains 'NestedMirrorOnHDD' -and $Parameters.StorageTierFriendlyNames -contains 'NestedParityOnHDD'
         }
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-Volume -Times 2 -Exactly -ParameterFilter {
-            $Size -gt 5TB -and $Size -lt 5.5TB -and ($StorageTierSizes[0] + $StorageTierSizes[1]) -eq $Size
+        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 2 -Exactly -ParameterFilter {
+            $Parameters.Size -gt 5TB -and $Parameters.Size -lt 5.5TB -and ($Parameters.StorageTierSizes[0] + $Parameters.StorageTierSizes[1]) -eq $Parameters.Size
         }
     }
 
@@ -115,7 +115,7 @@ Describe 'Cluster volumes Auto NestedParity x2 mixed tiers (mocked)' {
         { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -VolumeName CSV -VolumeCount 2 -StorageTier SSD,HDD -Resiliency NestedParity -Confirm:$false } |
             Should -Not -Throw
         Should -Invoke -ModuleName Deploy-S2D -CommandName New-StorageTier -Times 0 -Exactly
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-Volume -Times 2 -Exactly
+        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 2 -Exactly
     }
 }
 
@@ -135,6 +135,6 @@ Describe 'Cluster volumes Fixed footprint guard (mocked)' {
         # 2 x 10 TB mirror = 40 TB footprint + 8 TB reserve > 32 TB free.
         { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -VolumeCount 2 -SizingMode Fixed -VolumeSize '10TB' -Confirm:$false -ErrorAction Stop } |
             Should -Throw '*footprint*'
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-Volume -Times 0 -Exactly
+        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 0 -Exactly
     }
 }

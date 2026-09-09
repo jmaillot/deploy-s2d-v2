@@ -336,17 +336,42 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
             Write-S2DLog "Volume $name ($volRes on $volMedia, $sizeGiB GiB)"
             if ($volRes -eq "Mirror") {
                 if (-not $pinnedFlags[$idx]) {
-                    New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $name -FileSystem CSVFS_ReFS -Size $volumeSizes[$idx] -ResiliencySettingName Mirror | Out-Null
+                    $volumeSplat = @{
+                        StoragePoolFriendlyName = "S2D on $ClusterName"
+                        FriendlyName            = $name
+                        FileSystem              = "CSVFS_ReFS"
+                        Size                    = $volumeSizes[$idx]
+                        ResiliencySettingName   = "Mirror"
+                    }
                 } else {
-                    New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $name -FileSystem CSVFS_ReFS -StorageTierFriendlyNames "MirrorOn$volMedia" -StorageTierSizes $volumeSizes[$idx] | Out-Null
+                    $volumeSplat = @{
+                        StoragePoolFriendlyName  = "S2D on $ClusterName"
+                        FriendlyName             = $name
+                        FileSystem               = "CSVFS_ReFS"
+                        StorageTierFriendlyNames = @("MirrorOn$volMedia")
+                        StorageTierSizes         = @($volumeSizes[$idx])
+                    }
                 }
             } elseif ($volRes -eq "NestedMirror") {
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $name -FileSystem CSVFS_ReFS -StorageTierFriendlyNames "NestedMirrorOn$volMedia" -StorageTierSizes $volumeSizes[$idx] | Out-Null
+                $volumeSplat = @{
+                    StoragePoolFriendlyName  = "S2D on $ClusterName"
+                    FriendlyName             = $name
+                    FileSystem               = "CSVFS_ReFS"
+                    StorageTierFriendlyNames = @("NestedMirrorOn$volMedia")
+                    StorageTierSizes         = @($volumeSizes[$idx])
+                }
             } else {
                 $mirrorPart = [uint64][math]::Floor($volumeSizes[$idx] * ($NestedMirrorPercent / 100.0))
                 $parityPart = $volumeSizes[$idx] - $mirrorPart
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $name -FileSystem CSVFS_ReFS -StorageTierFriendlyNames "NestedMirrorOn$volMedia", "NestedParityOn$volMedia" -StorageTierSizes $mirrorPart, $parityPart | Out-Null
+                $volumeSplat = @{
+                    StoragePoolFriendlyName  = "S2D on $ClusterName"
+                    FriendlyName             = $name
+                    FileSystem               = "CSVFS_ReFS"
+                    StorageTierFriendlyNames = @("NestedMirrorOn$volMedia", "NestedParityOn$volMedia")
+                    StorageTierSizes         = @($mirrorPart, $parityPart)
+                }
             }
+            New-S2DVolume -Parameters $volumeSplat
         }
     }
 

@@ -14,7 +14,7 @@ Describe 'Deploy-S2D module' {
 
     It 'keeps helpers private' {
         $names = (Get-Command -Module Deploy-S2D).Name
-        foreach ($h in @('Write-S2DLog', 'Select-S2DNic', 'Get-S2DPoolableDisk', 'Get-S2DPoolDisk', 'Get-S2DVolumeEfficiency', 'Get-S2DCapacityMedia', 'Get-S2DCapacityReserve', 'Get-S2DVolumeTierMap', 'Get-S2DVolumeResiliencyMap')) {
+        foreach ($h in @('Write-S2DLog', 'Select-S2DNic', 'Get-S2DPoolableDisk', 'Get-S2DPoolDisk', 'New-S2DVolume', 'Get-S2DVolumeEfficiency', 'Get-S2DCapacityMedia', 'Get-S2DCapacityReserve', 'Get-S2DVolumeTierMap', 'Get-S2DVolumeResiliencyMap')) {
             $names | Should -Not -Contain $h
         }
     }
