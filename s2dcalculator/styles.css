@@ -119,6 +119,30 @@ button.primary {
   cursor: pointer;
 }
 button.primary:active { transform: scale(0.99); }
+button.secondary {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: #e8f0fe;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+pre {
+  background: var(--bg);
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 0.9rem;
+}
+.check { display: flex; gap: 8px; align-items: center; font-weight: 500; }
+.check input { width: auto; }
 
 .results { margin-bottom: 24px; }
 .bignums {

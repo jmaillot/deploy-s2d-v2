@@ -15,16 +15,23 @@ LONG DESCRIPTION
         VMQ/RSC on team members, binds the live migration network.
 
     Phase 2 - New-S2DCluster (run ONCE from one node):
-        Validates, creates the cluster, sets quorum, enables S2D, creates the
-        mirrored CSV volume, constrains SMB Multichannel, renames networks.
+        Validates, creates the cluster, sets quorum, enables S2D, creates
+        VolumeCount CSV volumes (ReFS) with the selected resiliency
+        (Mirror/NestedMirror/NestedParity - one value for all volumes, or
+        one per volume), pins tiers per volume with -StorageTier (SSD,HDD
+        side by side needs NVMe cache), constrains SMB Multichannel,
+        renames networks. Auto sizing splits usable capacity by efficiency;
+        Fixed validates footprints. A drive-based reserve (or
+        -CapacityReservePercent, larger wins) is kept unless -UseFullPool.
 
     Start-S2DDeployment is a back-compat wrapper around both. Prefer the phase
-    functions. Thin entry scripts live in Scripts/ (Invoke-S2DNodePrep.ps1,
-    New-S2DCluster.ps1); the safe-reboot runbook is Scripts/Reboot-S2D.ps1.
+    functions. Scripts/ holds the safe-reboot runbook (Reboot-S2D.ps1) and
+    the vendored Clear-PhysicalDiskHealthData.ps1 helper.
 
 EXAMPLES
     PS> Start-S2DNodePrep -StorageAIP 192.168.200.1 -StorageBIP 192.168.201.1 -WhatIf
     PS> New-S2DCluster -ClusterName CL -ClusterNodes HV1,HV2 -ClusterIP 192.168.1.240 -WhatIf
+    PS> New-S2DCluster -VolumeName CSV -VolumeCount 2 -StorageTier SSD,HDD -Resiliency Mirror,NestedParity -SizingMode Auto
 
 SEE ALSO
     Start-S2DNodePrep

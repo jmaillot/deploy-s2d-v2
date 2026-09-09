@@ -84,7 +84,12 @@ en: {
   errTooBig: "Even 48 drives/server of this size cannot reach the target — use bigger drives or more nodes.",
   warnBelow4need: "Below 4 capacity drives per server — nested resiliency needs 4+.",
   warn64need: "Plan more than 1 volume: single volumes cap at 64 TB (10 TB for VSS/Volsnap backups).",
-  tipVerify: "Verify on the other tab with these exact drive counts before buying."
+  tipVerify: "Verify on the other tab with these exact drive counts before buying.",
+  exportTitle: "Deploy it",
+  useFullPool: "Skip reserve (-UseFullPool)",
+  copyCmd: "Copy PowerShell command",
+  copied: "Copied ✓",
+  cmdEditNote: "Replace identity values, then run with -WhatIf first."
 },
 fr: {
   title: "Planificateur de capacité S2D — Storage Spaces Direct à 2 nœuds",
@@ -165,7 +170,12 @@ fr: {
   errTooBig: "Même 48 disques/serveur de cette taille n'atteignent pas l'objectif — disques plus gros ou plus de nœuds.",
   warnBelow4need: "Moins de 4 disques capacitatifs par serveur — la résilience imbriquée exige 4+.",
   warn64need: "Prévoyez plus d'1 volume : plafond 64 To (10 To pour VSS/Volsnap).",
-  tipVerify: "Vérifiez dans l'autre onglet avec ces nombres exacts avant d'acheter."
+  tipVerify: "Vérifiez dans l'autre onglet avec ces nombres exacts avant d'acheter.",
+  exportTitle: "Déployer",
+  useFullPool: "Sans réserve (-UseFullPool)",
+  copyCmd: "Copier la commande PowerShell",
+  copied: "Copié ✓",
+  cmdEditNote: "Remplacez les valeurs d'identité, puis exécutez avec -WhatIf d'abord."
 }
 };
 
@@ -342,6 +352,50 @@ function nvmeAdvice(drives, capMedia) {
   return null;
 }
 
+/* Build a copy-pasteable New-S2DCluster command from planner inputs. */
+function buildCommand() {
+  const vols = Math.min(64, Math.max(1, Math.round(num("g-vols"))));
+  const res = document.getElementById("g-res").value;
+  const reservePct = num("g-reservepct");
+  const useFull = document.getElementById("g-usefullpool").checked;
+  let cmd = 'New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\\\FILESERVER\\Witness$" -VolumeName "CSV"';
+  if (vols > 1) cmd += " -VolumeCount " + vols;
+  if (res !== "Mirror") cmd += " -Resiliency " + res;
+  cmd += ' -SizingMode "Auto"';
+  if (useFull) cmd += " -UseFullPool";
+  else if (reservePct !== 20) cmd += " -CapacityReservePercent " + reservePct;
+  return "# " + t("cmdEditNote") + "\n" + cmd;
+}
+
+function refreshCommand() {
+  if (!document.getElementById("g-results").hidden) {
+    document.getElementById("g-cmd").textContent = buildCommand();
+  }
+}
+
+function copyCommand() {
+  const cmd = document.getElementById("g-cmd").textContent;
+  const done = () => {
+    const b = document.getElementById("g-copy");
+    b.textContent = t("copied");
+    setTimeout(() => { b.textContent = t("copyCmd"); }, 2000);
+  };
+  const fallback = () => {
+    const ta = document.createElement("textarea");
+    ta.value = cmd;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+    done();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(cmd).then(done, fallback);
+  } else {
+    fallback();
+  }
+}
+
 function num(id) {
   const v = parseFloat(document.getElementById(id).value);
   return Number.isFinite(v) ? v : 0;
@@ -445,6 +499,7 @@ function calcGet() {
   if (vols < nodes) items.push(["warn", t("warnVolsNodes")]);
 
   warnList("g-warnings", items);
+  document.getElementById("g-cmd").textContent = buildCommand();
   box.hidden = false;
 }
 

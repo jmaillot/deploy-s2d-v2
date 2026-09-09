@@ -117,6 +117,10 @@
         <tr><td data-i18n="reserveRow"></td><td id="g-reserve">–</td></tr>
       </table>
       <ul class="warnings" id="g-warnings"></ul>
+      <h3 data-i18n="exportTitle"></h3>
+      <label class="check"><input type="checkbox" id="g-usefullpool" onchange="refreshCommand()"> <span data-i18n="useFullPool"></span></label>
+      <pre id="g-cmd"></pre>
+      <button class="secondary" id="g-copy" onclick="copyCommand()" data-i18n="copyCmd"></button>
     </div>
   </section>
 
