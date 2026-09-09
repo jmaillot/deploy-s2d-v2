@@ -356,11 +356,13 @@ function nvmeAdvice(drives, capMedia) {
 function buildCommand() {
   const vols = Math.min(64, Math.max(1, Math.round(num("g-vols"))));
   const res = document.getElementById("g-res").value;
+  const mirrorPct = num("g-mirrorpct");
   const reservePct = num("g-reservepct");
   const useFull = document.getElementById("g-usefullpool").checked;
   let cmd = 'New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\\\FILESERVER\\Witness$" -VolumeName "CSV"';
   if (vols > 1) cmd += " -VolumeCount " + vols;
   if (res !== "Mirror") cmd += " -Resiliency " + res;
+  if (res === "NestedParity" && mirrorPct !== 20) cmd += " -NestedMirrorPercent " + mirrorPct;
   cmd += ' -SizingMode "Auto"';
   if (useFull) cmd += " -UseFullPool";
   else if (reservePct !== 20) cmd += " -CapacityReservePercent " + reservePct;
