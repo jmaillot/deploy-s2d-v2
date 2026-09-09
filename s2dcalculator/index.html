@@ -164,6 +164,24 @@
   </section>
 </main>
 
+<section class="perf">
+  <div class="card">
+    <h2>Performance cheat sheet</h2>
+    <table class="breakdown perf-table">
+      <tr><th></th><th>Mirror (50%)</th><th>Nested mirror (25%)</th><th>Nested parity (~35–40%)</th></tr>
+      <tr><td>Read latency</td><td>Lowest</td><td>Lowest (any of 4 copies)</td><td>Fast recent, slower aged</td></tr>
+      <tr><td>Sustained random writes</td><td>Highest</td><td>Highest</td><td>Lowest</td></tr>
+      <tr><td>Backend writes / guest write</td><td>2×</td><td>4×</td><td>~1.2–2× + CPU</td></tr>
+      <tr><td>Survives</td><td>1 failure</td><td>2 failures</td><td>2 failures</td></tr>
+      <tr><td>Best for</td><td>Hot SSD volumes</td><td>Max safety</td><td>Cold/bulk SAS volumes</td></tr>
+    </table>
+    <ul class="takeaways">
+      <li>Size the parity mirror share to your biggest single burst (daily backup + margin), not the average — overflowing it drops throughput until destaging catches up.</li>
+      <li>An SSD cache flatters SAS parity: random writes coalesce in SSD and destage sequentially. Mirror-on-SSD + parity-on-SAS is the sweet spot.</li>
+    </ul>
+  </div>
+</section>
+
 <footer>
   <p>Math mirrors <code>Get-S2DVolumeEfficiency</code> / <code>Get-S2DCapacityReserve</code> (1 TB = 1000⁴ bytes, decimal like vendors).
   Verify with <code>-WhatIf</code> before deploying. <a href="https://github.com/jmaillot/deploy-s2d-v2">deploy-s2d-v2</a></p>

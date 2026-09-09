@@ -110,6 +110,22 @@ place later — choose upfront.
 `-NestedMirrorPercent` (10-30, default 20) sets the fast-tier share of
 `NestedParity` volumes: higher favors write bursts, lower favors capacity.
 
+**Performance.** No vendor IOPS figures exist per resiliency — what matters:
+
+| | Mirror | Nested mirror | Nested parity |
+|---|---|---|---|
+| Read latency | Lowest | Lowest (any of 4 copies) | Fast for recent data, slower for aged parity data |
+| Sustained random writes | Highest | Highest | Lowest (parity encoding + read-modify-write) |
+| Backend writes per guest write | 2x | 4x (burns IOPS + endurance) | ~1.2–2x, plus CPU |
+| Best for | Hot SSD volumes | Max safety, cost no object | Cold/bulk SAS volumes |
+
+Two rules: size `-NestedMirrorPercent` to your biggest single burst (daily
+backup + margin), not the average — overflowing the mirror tier drops
+throughput sharply until destaging catches up. And an SSD cache flatters
+SAS parity enormously (random writes coalesce in SSD, destage
+sequentially), which is why Mirror-on-SSD + Parity-on-SAS is the sweet
+spot.
+
 **Volumes.** `-VolumeCount` (1-64, default 1) creates `Name_01`, `Name_02`…
 from `-VolumeName` as prefix (count 1 keeps the exact name). Use at least
 one volume per node so ownership distributes. A single `-Resiliency` /

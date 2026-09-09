@@ -116,6 +116,22 @@ pas après coup — à choisir dès le départ.
 volumes `NestedParity` : plus haut favorise les rafales d'écriture, plus bas
 la capacité.
 
+**Performance.** Aucun chiffre IOPS par résilience — ce qui compte :
+
+| | Mirror | Nested mirror | Nested parity |
+|---|---|---|---|
+| Latence lecture | La plus basse | La plus basse (4 copies) | Rapide récent, plus lent vieilli |
+| Écritures aléatoires soutenues | Max | Max | Min (encodage + read-modify-write) |
+| Écritures backend par écriture | 2x | 4x (IOPS + endurance) | ~1,2–2x, plus CPU |
+| Idéal pour | Volumes SSD chauds | Sécurité max, coût indifférent | Volumes SAS froids/volumineux |
+
+Deux règles : dimensionnez `-NestedMirrorPercent` sur la plus grosse rafale
+unique (sauvegarde quotidienne + marge), pas sur la moyenne — déborder du
+tier miroir effondre le débit jusqu'au rattrapage. Et un cache SSD sublime
+la parité SAS (les écritures aléatoires fusionnent en SSD puis descendent
+en séquentiel) — d'où Mirror-sur-SSD + Parité-sur-SAS comme point
+d'équilibre.
+
 **Volumes.** `-VolumeCount` (1-64, défaut 1) crée `Nom_01`, `Nom_02`… à
 partir de `-VolumeName` comme préfixe (1 conserve le nom exact). Au moins un
 volume par nœud pour répartir la propriété. Une seule valeur `-Resiliency` /
