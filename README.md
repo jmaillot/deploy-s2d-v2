@@ -79,6 +79,10 @@ Always dry-run first: append `-WhatIf` (preflight still executes — that's the 
 
 Plan disks first with the hosted calculator (same math as the module):
 https://jmaillot.github.io/deploy-s2d-v2/
+It works both directions (disks → usable, usable → per-server shopping
+list for SAS/SSD/NVMe), flags undersized cache with the minimum to add,
+gives an NVMe add-or-skip verdict, and exports the matching
+`New-S2DCluster` command to copy-paste. French toggle included.
 
 ```powershell
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV_S2D" -SizingMode "Auto"

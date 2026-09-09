@@ -84,6 +84,10 @@ Toujours répéter d'abord (`-WhatIf`). Le pré-contrôle s'exécute même en dr
 
 Planifiez les disques avec le calculateur hébergé (mêmes maths que le module) :
 https://jmaillot.github.io/deploy-s2d-v2/
+Il fonctionne dans les deux sens (disques → utile, utile → liste d'achats
+par serveur SAS/SSD/NVMe), signale un cache sous-dimensionné avec le
+minimum à ajouter, rend un verdict NVMe, et exporte la commande
+`New-S2DCluster` correspondante à copier-coller. Bascule français incluse.
 
 ```powershell
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV_S2D" -SizingMode "Auto"

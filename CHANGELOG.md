@@ -21,6 +21,11 @@
 - Fixed-mode footprint validation (size/efficiency + reserve vs. pool free)
   with 64 TB / 10 TB VSS guidance; sub-4-drives/server preflight warning
 - Verbose capacity plan printed before creation (usable GiB per resiliency)
+- Capacity planner site (`s2dcalculator/`, GitHub Pages, EN/FR toggle):
+  both sizing directions, cache minimums, NVMe add-or-skip verdict,
+  PowerShell command export
+- README galleries per step, cluster switch grid, case-based tiers,
+  resiliency performance comparison, Microsoft reference links (EN+FR)
 
 ## [1.7.0] - 2026-09-09
 ### Added
