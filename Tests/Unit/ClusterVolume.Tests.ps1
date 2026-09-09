@@ -2,6 +2,10 @@
 # Covers Auto sizing math, tier template ensure-or-skip, per-volume
 # creation calls, and the Fixed footprint throw. Pure helpers have
 # their own unit tests; this suite pins the wiring between them.
+#
+# Note: volume creation is captured by redefining the internal
+# New-S2DVolume inside module state (Pester Mock does not reliably
+# intercept module-internal calls here). External cmdlets use Mock.
 BeforeAll {
     Import-Module "$PSScriptRoot/../../Deploy-S2D/Deploy-S2D.psm1" -Force
 
@@ -10,7 +14,7 @@ BeforeAll {
     # replace them entirely, so no real host is ever touched.
     $externals = @(
         'Test-Cluster', 'Get-Cluster', 'Get-ClusterNode', 'Set-ClusterQuorum',
-        'Enable-ClusterS2D', 'Get-StoragePool', 'Get-VirtualDisk',
+        'Enable-ClusterS2D', 'Get-StoragePool', 'Get-VirtualDisk', 'New-Volume',
         'Get-StorageTier', 'New-StorageTier', 'Get-ClusterNetworkInterface',
         'Add-Content'
     )
@@ -35,8 +39,21 @@ BeforeAll {
     Mock -ModuleName Deploy-S2D Get-StorageTier -MockWith {}
     Mock -ModuleName Deploy-S2D Get-ClusterNetworkInterface -MockWith {}
     Mock -ModuleName Deploy-S2D Invoke-Command -MockWith {}
-    Mock -ModuleName Deploy-S2D New-S2DVolume -MockWith {}
     Mock -ModuleName Deploy-S2D New-StorageTier -MockWith {}
+
+    function script:Reset-VolumeCapture {
+        & (Get-Module Deploy-S2D) {
+            $script:capturedVolumes = @()
+            function New-S2DVolume {
+                param($Parameters)
+                $script:capturedVolumes += $Parameters
+            }
+        }
+    }
+
+    function script:Get-VolumeCapture {
+        & (Get-Module Deploy-S2D) { $script:capturedVolumes }
+    }
 }
 
 Describe 'Cluster volumes Auto Mirror (mocked)' {
@@ -54,23 +71,27 @@ Describe 'Cluster volumes Auto Mirror (mocked)' {
 
     It 'creates one 12 TB classic mirror volume and no tier templates' {
         # (32 - 8) x 50% = 12 TB.
+        Reset-VolumeCapture
         { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -Confirm:$false } |
             Should -Not -Throw
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 1 -Exactly -ParameterFilter {
-            $Parameters.Size -eq 12TB -and $Parameters.ResiliencySettingName -eq 'Mirror'
-        }
         Should -Invoke -ModuleName Deploy-S2D -CommandName New-StorageTier -Times 0 -Exactly
+        $calls = Get-VolumeCapture
+        $calls.Count | Should -Be 1
+        $calls[0].Size | Should -Be 12TB
+        $calls[0].ResiliencySettingName | Should -Be 'Mirror'
     }
 
     It 'pins a Mirror volume through a MirrorOn tier template' {
+        Reset-VolumeCapture
         { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -StorageTier HDD -Confirm:$false } |
             Should -Not -Throw
         Should -Invoke -ModuleName Deploy-S2D -CommandName New-StorageTier -Times 1 -Exactly -ParameterFilter {
             $FriendlyName -eq 'MirrorOnHDD' -and $NumberOfDataCopies -eq 2
         }
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 1 -Exactly -ParameterFilter {
-            $Parameters.Size -eq 12TB -and $Parameters.StorageTierFriendlyNames -eq 'MirrorOnHDD'
-        }
+        $calls = Get-VolumeCapture
+        $calls.Count | Should -Be 1
+        $calls[0].Size | Should -Be 12TB
+        $calls[0].StorageTierFriendlyNames | Should -Be 'MirrorOnHDD'
     }
 }
 
@@ -91,18 +112,20 @@ Describe 'Cluster volumes Auto NestedParity x2 mixed tiers (mocked)' {
     }
 
     It 'creates two parity volumes on their pinned tiers with split tiers' {
+        Reset-VolumeCapture
         { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -VolumeName CSV -VolumeCount 2 -StorageTier SSD,HDD -Resiliency NestedParity -Confirm:$false } |
             Should -Not -Throw
         Should -Invoke -ModuleName Deploy-S2D -CommandName New-StorageTier -Times 4 -Exactly
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 1 -Exactly -ParameterFilter {
-            $Parameters.FriendlyName -eq 'CSV_01' -and $Parameters.StorageTierFriendlyNames -contains 'NestedMirrorOnSSD' -and $Parameters.StorageTierFriendlyNames -contains 'NestedParityOnSSD'
-        }
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 1 -Exactly -ParameterFilter {
-            $Parameters.FriendlyName -eq 'CSV_02' -and $Parameters.StorageTierFriendlyNames -contains 'NestedMirrorOnHDD' -and $Parameters.StorageTierFriendlyNames -contains 'NestedParityOnHDD'
-        }
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 2 -Exactly -ParameterFilter {
-            $Parameters.Size -gt 4.5TB -and $Parameters.Size -lt 5TB -and ($Parameters.StorageTierSizes[0] + $Parameters.StorageTierSizes[1]) -eq $Parameters.Size
-        }
+        $calls = Get-VolumeCapture
+        $calls.Count | Should -Be 2
+        $calls[0].FriendlyName | Should -Be 'CSV_01'
+        $calls[0].StorageTierFriendlyNames | Should -Be @('NestedMirrorOnSSD', 'NestedParityOnSSD')
+        $calls[1].FriendlyName | Should -Be 'CSV_02'
+        $calls[1].StorageTierFriendlyNames | Should -Be @('NestedMirrorOnHDD', 'NestedParityOnHDD')
+        $calls[0].Size | Should -BeGreaterThan 4.5TB
+        $calls[0].Size | Should -BeLessThan 5TB
+        $calls[0].Size | Should -Be $calls[1].Size
+        ($calls[0].StorageTierSizes[0] + $calls[0].StorageTierSizes[1]) | Should -Be $calls[0].Size
     }
 
     It 'skips template creation when templates already exist' {
@@ -112,10 +135,11 @@ Describe 'Cluster volumes Auto NestedParity x2 mixed tiers (mocked)' {
             [pscustomobject]@{ FriendlyName = 'NestedMirrorOnHDD' }
             [pscustomobject]@{ FriendlyName = 'NestedParityOnHDD' }
         }
+        Reset-VolumeCapture
         { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -VolumeName CSV -VolumeCount 2 -StorageTier SSD,HDD -Resiliency NestedParity -Confirm:$false } |
             Should -Not -Throw
         Should -Invoke -ModuleName Deploy-S2D -CommandName New-StorageTier -Times 0 -Exactly
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 2 -Exactly
+        (Get-VolumeCapture).Count | Should -Be 2
     }
 }
 
@@ -133,8 +157,9 @@ Describe 'Cluster volumes Fixed footprint guard (mocked)' {
 
     It 'throws before creating anything when footprints exceed free space' {
         # 2 x 10 TB mirror = 40 TB footprint + 8 TB reserve > 32 TB free.
+        Reset-VolumeCapture
         { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -VolumeCount 2 -SizingMode Fixed -VolumeSize '10TB' -Confirm:$false -ErrorAction Stop } |
             Should -Throw '*footprint*'
-        Should -Invoke -ModuleName Deploy-S2D -CommandName New-S2DVolume -Times 0 -Exactly
+        (Get-VolumeCapture).Count | Should -Be 0
     }
 }
