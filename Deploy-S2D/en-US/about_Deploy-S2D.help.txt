@@ -2,7 +2,7 @@ TOPIC
     about_Deploy-S2D
 
 SHORT DESCRIPTION
-    Two-phase Storage Spaces Direct deployment for two Windows Server nodes.
+    Two-phase Storage Spaces Direct deployment for 2 to 16 Windows Server nodes.
 
 LONG DESCRIPTION
     The Deploy-S2D module deploys a Storage Spaces Direct (S2D) cluster in two
@@ -17,12 +17,16 @@ LONG DESCRIPTION
     Phase 2 - New-S2DCluster (run ONCE from one node):
         Validates, creates the cluster, sets quorum, enables S2D, creates
         VolumeCount CSV volumes (ReFS) with the selected resiliency
-        (Mirror/NestedMirror/NestedParity - one value for all volumes, or
-        one per volume), pins tiers per volume with -StorageTier (SSD,HDD
-        side by side needs NVMe cache), constrains SMB Multichannel,
-        renames networks. Auto sizing splits usable capacity by efficiency;
-        Fixed validates footprints. A drive-based reserve (or
-        -CapacityReservePercent, larger wins) is kept unless -UseFullPool.
+        (Mirror/NestedMirror/NestedParity on 2 nodes, Mirror on 3,
+        DualParity/MirrorAcceleratedParity on 4+ - one value for all
+        volumes, or one per volume), pins tiers per volume with
+        -StorageTier (SSD,HDD side by side needs NVMe cache), constrains
+        SMB Multichannel, renames networks. Auto sizing splits usable
+        capacity by efficiency; Fixed validates footprints. A
+        drive-based reserve (or -CapacityReservePercent, larger wins) is
+        kept unless -UseFullPool. Clusters beyond 2 nodes need switched
+        fabrics (one switch per fabric minimum) - direct-connect cables
+        only work at 2 nodes.
 
     Start-S2DDeployment is a back-compat wrapper around both. Prefer the phase
     functions. Scripts/ holds the safe-reboot runbook (Reboot-S2D.ps1) and

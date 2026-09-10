@@ -1,6 +1,16 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- N-node clusters (2-16): `Mirror` is 2-way (50%) on 2 nodes, 3-way
+  (33.3%) on 3+; `DualParity` (50-80% by node count, hybrid vs.
+  all-flash columns) and `MirrorAcceleratedParity` (3-way mirror +
+  dual parity blend via `-NestedMirrorPercent`) on 4+ nodes.
+  Nested options throw outside 2 nodes, dual-parity options below 4.
+  Pinned `MirrorOn` tier uses 3 copies on 3+ nodes.
+- Planner: node-gated resiliency options, switched-fabric guide and
+  3-node quorum warning above 2 nodes (EN+FR), node-aware efficiency
+  and `New-S2DCluster` command export.
 
 ## [2.0.1] - 2026-09-10
 ### Added

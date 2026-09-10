@@ -2,10 +2,11 @@
 
 > English version: [README.md](README.md).
 
-Déploie un cluster Storage Spaces Direct (S2D) à deux nœuds sur Windows Server 2025 :
+Déploie un cluster Storage Spaces Direct (S2D) de 2 à 16 nœuds sur Windows Server 2025 :
 préparation réseau/stockage par nœud, puis création du cluster avec quorum,
-activation S2D et volume(s) CSV avec résilience au choix
-(Mirror/NestedMirror/NestedParity). PowerShell 5.1, français/anglais gérés.
+activation S2D et volume(s) CSV avec résilience adaptée aux nœuds
+(Mirror/NestedMirror/NestedParity à 2 nœuds, Mirror à 3,
+DualParity/MirrorAcceleratedParity à 4+). PowerShell 5.1, français/anglais gérés.
 
 ## 0. Prérequis
 
@@ -21,6 +22,13 @@ activation S2D et volume(s) CSV avec résilience au choix
 - [ ] 1x témoin : partage de fichiers (`\\serveur\partage$`) ou Cloud Witness Azure
 - [ ] 1x IP statique de cluster ; IP statiques de stockage par nœud sur des
   **sous-réseaux différents**
+- [ ] **3+ nœuds : fabrics commutés** — le direct-connect ne marche qu'à
+  2 nœuds. Chaque fabric (StorageA, StorageB, LiveMig) exige son switch
+  (deux par fabric pour la HA) ; chaque nœud est relié à chaque fabric.
+  De bout en bout par fabric : MTU jumbo sur cartes, ports switch et
+  VLANs, un sous-réseau + VLAN dédié ; RoCE exige PFC/DCB sur les ports
+  switch (iWARP évite le DCB). Vérifiez le RDMA de bout en bout avant
+  de déployer.
 - [ ] Console élevée **sur les nœuds eux-mêmes** — ne jamais lancer NodePrep depuis
   un poste de travail (il renomme les cartes *locales*)
 
@@ -88,7 +96,10 @@ https://jmaillot.github.io/deploy-s2d-v2/
 Il fonctionne dans les deux sens (disques → utile, utile → liste d'achats
 par serveur SAS/SSD/NVMe), signale un cache sous-dimensionné avec le
 minimum à ajouter, rend un verdict NVMe, et exporte la commande
-`New-S2DCluster` correspondante à copier-coller. Bascule français incluse.
+`New-S2DCluster` correspondante à copier-coller. Au-delà de 2 nœuds il
+affiche aussi le guide fabric commuté (un switch par fabric minimum,
+config MTU / VLAN / PFC de bout en bout) et les options de résilience
+adaptées aux nœuds. Bascule français incluse.
 
 ```powershell
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV_S2D" -SizingMode "Auto"
@@ -108,27 +119,33 @@ quorum, effacée ensuite, jamais journalisée.
 
 ### Stockage : résilience, volumes et dimensionnement
 
-| `-Resiliency` | Utile (part du pool brut) | Survit à | Quand l'utiliser |
-|---|---|---|---|
-| `Mirror` (défaut) | 50 % | 1 panne (disque ou nœud) | Labo, vitesse max, volumes SSD |
-| `NestedMirror` | 25 % | 2 pannes | 2 nœuds en production, sécurité max |
-| `NestedParity` | ~35-40 % | 2 pannes | 2 nœuds en production, équilibré (choix Microsoft) |
+| Nœuds | `-Resiliency` | Utile (part du pool brut) | Survit à | Quand l'utiliser |
+|---|---|---|---|---|
+| 2 | `Mirror` (défaut) | 50 % | 1 panne (disque ou nœud) | Labo, vitesse max, volumes SSD |
+| 2 | `NestedMirror` | 25 % | 2 pannes | 2 nœuds en production, sécurité max |
+| 2 | `NestedParity` | ~35-40 % | 2 pannes | 2 nœuds en production, équilibré (choix Microsoft) |
+| 3 | `Mirror` (3-way) | 33,3 % | 2 pannes, mais 2 nœuds perdus = quorum perdu | Seule option à 3 nœuds |
+| 4-16 | `Mirror` (3-way) | 33,3 % | 2 pannes | Volumes chauds à l'échelle |
+| 4-16 | `DualParity` | 50 % (4-6 nœuds) → 66,7 % (7-11) → 72,7 % (12-16) ; tout-flash jusqu'à 75 % (9-15) / 80 % (16) | 2 pannes | Froid/volumineux à l'échelle |
+| 4-16 | `MirrorAcceleratedParity` | Mix des deux selon `-NestedMirrorPercent` | 2 pannes | Chaud + froid mixte dans un volume |
 
-Utile = la part du pool brut disponible pour les données : 50 % transforment
+Les options imbriquées refusent hors 2 nœuds ; `DualParity` /
+`MirrorAcceleratedParity` refusent sous 4 nœuds. Utile = la part du pool brut disponible pour les données : 50 % transforment
 10 To bruts en 5 To de volumes. Les volumes imbriqués ne se convertissent
 pas après coup — à choisir dès le départ.
 `-NestedMirrorPercent` (10-30, défaut 20) règle la part rapide des
-volumes `NestedParity` : plus haut favorise les rafales d'écriture, plus bas
+volumes `NestedParity` et `MirrorAcceleratedParity` : plus haut favorise
+les rafales d'écriture, plus bas
 la capacité.
 
 **Performance.** Aucun chiffre IOPS par résilience — ce qui compte :
 
-| | Mirror | Nested mirror | Nested parity |
-|---|---|---|---|
-| Latence lecture | La plus basse | La plus basse (4 copies) | Rapide récent, plus lent vieilli |
-| Écritures aléatoires soutenues | Max | Max | Min (encodage + read-modify-write) |
-| Écritures backend par écriture | 2x | 4x (IOPS + endurance) | ~1,2–2x, plus CPU |
-| Idéal pour | Volumes SSD chauds | Sécurité max, coût indifférent | Volumes SAS froids/volumineux |
+| | Mirror | Nested mirror | Nested parity | Dual parity (4+ nœuds) |
+|---|---|---|---|---|
+| Latence lecture | La plus basse | La plus basse (4 copies) | Rapide récent, plus lent vieilli | Plus lent (décodage parité) |
+| Écritures aléatoires soutenues | Max | Max | Min (encodage + read-modify-write) | Min (encodage parité + CPU) |
+| Écritures backend par écriture | 2x | 4x (IOPS + endurance) | ~1,2–2x, plus CPU | ~2x, plus CPU |
+| Idéal pour | Volumes SSD chauds | Sécurité max, coût indifférent | Volumes SAS froids/volumineux | Froid/volumineux à l'échelle |
 
 Deux règles : dimensionnez `-NestedMirrorPercent` sur la plus grosse rafale
 unique (sauvegarde quotidienne + marge), pas sur la moyenne — déborder du
@@ -204,8 +221,10 @@ VSS/Volsnap) ; avertissement sous 4 disques capacitatifs par serveur.
 | Paramètre | Effet |
 |---|---|
 | `-VolumeCount 2` | `CSV_01`, `CSV_02`, … (≥1 par nœud) |
-| `-Resiliency NestedParity` | Tous les volumes survivent à 2 pannes, ~35-40 % utiles |
+| `-Resiliency NestedParity` | Tous les volumes survivent à 2 pannes, ~35-40 % utiles (2 nœuds) |
 | `-Resiliency Mirror,NestedParity` | Mix par volume (nombre = `-VolumeCount`) |
+| `-Resiliency DualParity` | Sécurité 2 pannes à 50-80 % utiles (4+ nœuds) |
+| `-Resiliency Mirror,DualParity` | Mix miroir chaud + parité froide par volume (4+ nœuds) |
 | `-StorageTier SSD,HDD` | Épinglage par tier (cache NVMe requis) |
 | `-NestedMirrorPercent 30` | Plus gros tier rapide dans les volumes parité (10-30) |
 | `-SizingMode Fixed -VolumeSize 2TB` | Taille exacte par volume, empreinte validée |
@@ -224,6 +243,9 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
 
 # C. Tailles fixes : 2 To par volume, erreur si pool + réserve insuffisants.
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -SizingMode "Fixed" -VolumeSize "2TB"
+
+# E. Quatre nœuds (fabrics commutés) : miroir 3-way pour le chaud, parité double pour le froid.
+New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2","HV3","HV4" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -Resiliency Mirror,DualParity -SizingMode "Auto"
 
 # D. Répétition (variante + -WhatIf) : validation + plan capacitaire, sans changements.
 New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\NTSVR22\ClusterPDL$" -VolumeName "CSV" -VolumeCount 2 -StorageTier SSD,HDD -Resiliency Mirror,NestedParity -SizingMode "Auto" -WhatIf

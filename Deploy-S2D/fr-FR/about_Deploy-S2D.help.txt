@@ -2,7 +2,7 @@
     about_Deploy-S2D
 
 SHORT DESCRIPTION
-    Déploiement Storage Spaces Direct en deux phases pour deux
+    Déploiement Storage Spaces Direct en deux phases pour 2 à 16
     nœuds Windows Server.
 
 LONG DESCRIPTION
@@ -20,13 +20,17 @@ LONG DESCRIPTION
     Phase 2 - New-S2DCluster (à exécuter UNE FOIS depuis un nœud) :
         Valide, crée le cluster, définit le quorum, active S2D, crée
         VolumeCount volumes CSV (ReFS) avec la résilience choisie
-        (Mirror/NestedMirror/NestedParity - une valeur pour tous les volumes,
-        ou une par volume), épingle les tiers par volume avec -StorageTier
-        (SSD,HDD côte à côte exige un cache NVMe), contraint SMB Multichannel,
-        renomme les réseaux. Le dimensionnement Auto répartit la capacité
-        utile selon l'efficacité ; Fixed valide les empreintes. Une réserve
-        au niveau des disques (ou -CapacityReservePercent, le plus grand
-        gagne) est conservée sauf -UseFullPool.
+        (Mirror/NestedMirror/NestedParity à 2 nœuds, Mirror à 3,
+        DualParity/MirrorAcceleratedParity à 4+ - une valeur pour tous
+        les volumes, ou une par volume), épingle les tiers par volume
+        avec -StorageTier (SSD,HDD côte à côte exige un cache NVMe),
+        contraint SMB Multichannel, renomme les réseaux. Le
+        dimensionnement Auto répartit la capacité utile selon
+        l'efficacité ; Fixed valide les empreintes. Une réserve au niveau
+        des disques (ou -CapacityReservePercent, le plus grand gagne)
+        est conservée sauf -UseFullPool. Au-delà de 2 nœuds, des fabrics
+        commutés sont requis (un switch par fabric minimum) - le
+        direct-connect ne marche qu'à 2 nœuds.
 
     Start-S2DDeployment est un wrapper de compatibilité autour des deux.
     Préférez les fonctions par phase. Scripts/ contient le runbook de
