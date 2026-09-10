@@ -294,7 +294,7 @@ Get-PhysicalDisk -UniqueId <id> | Clear-PhysicalDiskHealthData -Intent -Policy -
 
 ## Référence
 
-- Module `Deploy-S2D/` (v2.0.0, publiable) : `Start-S2DNodePrep`,
+- Module `Deploy-S2D/` (v2.0.1, publiable) : `Start-S2DNodePrep`,
   `New-S2DCluster`, `Start-S2DDeployment` (wrapper de compat). `Public/` = une
   fonction par fichier, `Private/` = helpers, `en-US/` = aide conceptuelle.
   `Scripts/` = runbook de redémarrage, helper tiers, one-shots. `archive/` = retiré.

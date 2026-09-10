@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [2.0.1] - 2026-09-10
 ### Added
 - Mocked runtime tests for the volume path (`ClusterVolume.Tests.ps1`):
   Auto sizing, tier ensure-or-skip, per-volume calls, Fixed guard
