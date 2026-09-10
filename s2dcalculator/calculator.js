@@ -26,6 +26,8 @@ en: {
   resMAPs: "Mirror-accelerated parity",
   mirrorShare: "Mirror share for nested / mixed parity",
   reservePct: "Reserve %",
+  reserveFloorWins: "drive floor wins: {floor} ≥ {pct}% ({pctVal})",
+  reservePctWins: "{pct}% wins: {pctVal} ≥ drive floor {floor}",
   volumes: "Volumes (usable split evenly)",
   drivesPerServer: "Drives per server",
   hintCache: "Fastest media present becomes cache automatically (zero usable capacity).",
@@ -127,6 +129,8 @@ fr: {
   resMAPs: "Parité accélérée par miroir",
   mirrorShare: "Part miroir pour parité imbriquée / mixte",
   reservePct: "Réserve %",
+  reserveFloorWins: "plancher disques : {floor} ≥ {pct} % ({pctVal})",
+  reservePctWins: "{pct} % l'emporte : {pctVal} ≥ plancher {floor}",
   volumes: "Volumes (utile répartie)",
   drivesPerServer: "Disques par serveur",
   hintCache: "Le média le plus rapide devient automatiquement le cache (aucune capacité utile).",
@@ -306,13 +310,29 @@ function largestOf(drives, media) {
 
 /* Reserve in TB. rawTB = free pool TB. Mirrors Get-S2DCapacityReserve. */
 function reserveTB(rawTB, nodeCount, reservePct, drives) {
+  return reserveDetail(rawTB, nodeCount, reservePct, drives).reserve;
+}
+
+/* Same, plus which rule won (shown next to the reserve so a dead % slider is explainable). */
+function reserveDetail(rawTB, nodeCount, reservePct, drives) {
   const slots = Math.min(nodeCount, 4);
   let floor = 0;
   const cap = capacityMedia(drives);
   const groups = cap.length ? cap : [...new Set(drives.map((d) => d.media))];
   for (const m of groups) floor += slots * largestOf(drives, m);
   const pct = rawTB * (reservePct / 100);
-  return Math.min(rawTB, Math.max(floor, pct));
+  const reserve = Math.min(rawTB, Math.max(floor, pct));
+  return { reserve, floor, pct };
+}
+
+function reserveLabel(detail, reservePct) {
+  const p = {
+    floor: fmt(detail.floor),
+    pct: String(reservePct),
+    pctVal: fmt(detail.pct)
+  };
+  const why = detail.floor >= detail.pct ? t("reserveFloorWins", p) : t("reservePctWins", p);
+  return fmt(detail.reserve) + " — " + why;
 }
 
 function showMode(mode) {
@@ -570,10 +590,10 @@ function calcGet() {
     return;
   }
 
-  const reserve = reserveTB(rawTB, nodes, reservePct, drives);
+  const reserve = reserveDetail(rawTB, nodes, reservePct, drives);
   const allFlash = capMedia.length > 0 && !capMedia.includes("SAS");
   const eff = efficiency(res, capPerServer, mirrorPct, nodes, allFlash);
-  const usable = Math.max(0, rawTB - reserve) * eff;
+  const usable = Math.max(0, rawTB - reserve.reserve) * eff;
 
   document.getElementById("g-usable").textContent = fmtNum(usable);
   document.getElementById("g-pervol").textContent = fmtNum(usable / vols);
@@ -582,7 +602,7 @@ function calcGet() {
   document.getElementById("g-cache").textContent = fmt(cacheTB) + (cacheTB > 0 ? " " + t("cacheNote") : "");
   document.getElementById("g-tiers").textContent = t("tiersCap", { m: capMedia.join(" + ") });
   document.getElementById("g-nvme").textContent = nvmeAdvice(drives, capMedia) || "–";
-  document.getElementById("g-reserve").textContent = fmt(reserve);
+  document.getElementById("g-reserve").textContent = reserveLabel(reserve, reservePct);
 
   if (usable / vols > 64) items.push(["warn", t("warn64vol")]);
   if (res === "Mirror" && nodes === 2) items.push(["ok", t("tipNested")]);
@@ -633,7 +653,8 @@ function calcNeed() {
   document.getElementById("n-count-label").textContent = t("resultDrives", { media: mediaLabel });
   document.getElementById("n-yield").textContent = fmtNum(foundUsable);
   document.getElementById("n-raw").textContent = fmt(foundRaw);
-  document.getElementById("n-reserve").textContent = fmt(foundReserve);
+  const det = reserveDetail(foundRaw, nodes, reservePct, [{ media, n: found, sizeTB: size }]);
+  document.getElementById("n-reserve").textContent = reserveLabel(det, reservePct);
 
   if (media === "SAS") {
     const cacheEach = Math.max(0.8, Math.round((found * size * 0.1) * 10) / 10);

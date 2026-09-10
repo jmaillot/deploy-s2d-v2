@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [2.2.0] - 2026-09-10
 ### Added
 - N-node clusters (2-16): `Mirror` is 2-way (50%) on 2 nodes, 3-way
   (33.3%) on 3+; `DualParity` (50-80% by node count, hybrid vs.
@@ -11,6 +13,9 @@
 - Planner: node-gated resiliency options, switched-fabric guide and
   3-node quorum warning above 2 nodes (EN+FR), node-aware efficiency
   and `New-S2DCluster` command export.
+- Planner: reserve row shows which rule wins (drive floor vs. percent)
+  so an ineffective Reserve % is explainable; 2-16 node wording in the
+  prerequisites checklist (EN+FR).
 
 ## [2.0.1] - 2026-09-10
 ### Added

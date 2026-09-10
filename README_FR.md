@@ -10,7 +10,7 @@ DualParity/MirrorAcceleratedParity à 4+). PowerShell 5.1, français/anglais gé
 
 ## 0. Prérequis
 
-- [ ] 2x Windows Server 2025 (Datacenter), rôles Failover-Clustering + Hyper-V
+- [ ] 2–16x Windows Server 2025 (Datacenter), rôles Failover-Clustering + Hyper-V (16 = maximum S2D)
 - [ ] **Cartes 10 GbE ou plus avec RDMA obligatoires sur le fabric de stockage** —
   le pré-contrôle refuse tout lien plus lent. En dessous de 10 GbE, le trafic de
   resynchronisation sature le lien.
@@ -316,7 +316,7 @@ Get-PhysicalDisk -UniqueId <id> | Clear-PhysicalDiskHealthData -Intent -Policy -
 
 ## Référence
 
-- Module `Deploy-S2D/` (v2.0.1, publiable) : `Start-S2DNodePrep`,
+- Module `Deploy-S2D/` (v2.2.0, publiable) : `Start-S2DNodePrep`,
   `New-S2DCluster`, `Start-S2DDeployment` (wrapper de compat). `Public/` = une
   fonction par fichier, `Private/` = helpers, `en-US/` = aide conceptuelle.
   `Scripts/` = runbook de redémarrage, helper tiers, one-shots. `archive/` = retiré.
