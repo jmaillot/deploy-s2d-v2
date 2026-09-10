@@ -3,7 +3,7 @@ BeforeAll {
     # Pure helpers are dot-sourced into test scope and called directly:
     # InModuleScope wraps collection outputs in an extra array layer,
     # which breaks array assertions that otherwise render identically.
-    foreach ($f in @('Get-S2DVolumeEfficiency', 'Get-S2DCapacityMedia', 'Get-S2DCapacityReserve', 'Get-S2DVolumeTierMap', 'Get-S2DVolumeResiliencyMap')) {
+    foreach ($f in @('Get-S2DVolumeEfficiency', 'Get-S2DDualParityEfficiency', 'Get-S2DCapacityMedia', 'Get-S2DCapacityReserve', 'Get-S2DVolumeTierMap', 'Get-S2DVolumeResiliencyMap')) {
         . "$PSScriptRoot/../../Deploy-S2D/Private/$f.ps1"
     }
 }
