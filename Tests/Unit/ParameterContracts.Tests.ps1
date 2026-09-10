@@ -19,10 +19,10 @@ Describe 'Parameter contracts' {
         }
     }
 
-    It 'ClusterNodes requires exactly 2 nodes' {
+    It 'ClusterNodes allows 2 to 16 nodes' {
         $cnt = (Get-Command New-S2DCluster).Parameters['ClusterNodes'].Attributes.Where({ $_ -is [System.Management.Automation.ValidateCountAttribute] })
         $cnt.MinLength | Should -Be 2
-        $cnt.MaxLength | Should -Be 2
+        $cnt.MaxLength | Should -Be 16
     }
 
     It 'AzStorageKey is SecureString' {
@@ -48,7 +48,7 @@ Describe 'Parameter contracts' {
     It 'volume params carry v2 defaults and bounds' {
         $params = (Get-Command New-S2DCluster).Parameters
         $params['VolumeCount'].Attributes.Where({ $_ -is [System.Management.Automation.ValidateRangeAttribute] }).MaxRange | Should -Be 64
-        $params['Resiliency'].Attributes.Where({ $_ -is [System.Management.Automation.ValidateSetAttribute] }).ValidValues -join ',' | Should -Be 'Mirror,NestedMirror,NestedParity'
+        $params['Resiliency'].Attributes.Where({ $_ -is [System.Management.Automation.ValidateSetAttribute] }).ValidValues -join ',' | Should -Be 'Mirror,NestedMirror,NestedParity,DualParity,MirrorAcceleratedParity'
         $params['NestedMirrorPercent'].Attributes.Where({ $_ -is [System.Management.Automation.ValidateRangeAttribute] }).MinRange | Should -Be 10
         $params['StorageTier'].Attributes.Where({ $_ -is [System.Management.Automation.ValidateSetAttribute] }).ValidValues -join ',' | Should -Be 'Auto,SSD,HDD'
         $params['VolumeCount'].ParameterType | Should -Be ([int])

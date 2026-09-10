@@ -12,7 +12,7 @@ detected and skipped instead of recreated.
 .PARAMETER ClusterName
 Cluster name.
 .PARAMETER ClusterNodes
-Exactly 2 cluster node names.
+2 to 16 cluster node names (16 = S2D maximum).
 .PARAMETER ClusterIP
 Cluster static IP. Must be free (pre-checked).
 .PARAMETER WitnessType
@@ -30,15 +30,20 @@ as prefix (CSV_S2D -> CSV_S2D_01, CSV_S2D_02). Default CSV_S2D.
 Number of CSV volumes (1-64). Use at least 1 per node so volume ownership
 distributes. Default 1.
 .PARAMETER Resiliency
-Mirror (classic 2-way, 50% efficiency, survives 1 failure), NestedMirror
-(nested 2-way, 25%, survives 2 failures), NestedParity (nested
-mirror-accelerated parity, ~35-40%, survives 2 failures). A single value
+Mirror (2-way at 50% on 2 nodes, 3-way at 33.3% on 3+ nodes),
+NestedMirror (nested 2-way, 25%, 2 nodes only) and NestedParity
+(nested mirror-accelerated parity, ~35-40%, 2 nodes only) for up to
+2 nodes; DualParity (50-80% by node count, 4+ nodes only) and
+MirrorAcceleratedParity (3-way mirror + dual parity blend, 4+ nodes
+only) at larger scale. A single value
 broadcasts to all volumes, or pass one per volume (count must match
 VolumeCount), e.g. Mirror,NestedParity for a fast SSD volume plus an
 efficient SAS volume. Nested volumes cannot be converted in place later;
-Microsoft recommends nested for production 2-node clusters. Default Mirror.
+Microsoft recommends nested for production 2-node clusters and
+three-way mirror and/or dual parity otherwise. Default Mirror.
 .PARAMETER NestedMirrorPercent
-Fast-tier mirror share for NestedParity (10-30, default 20). Higher values
+Fast-tier mirror share for NestedParity and MirrorAcceleratedParity
+(10-30, default 20). Higher values
 favor write bursts; lower values favor capacity.
 .PARAMETER StorageTier
 Capacity media per volume: a single value broadcasts to all volumes, or
@@ -79,7 +84,7 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
         [Parameter(Mandatory = $true)]
         [string]$ClusterName,
         [Parameter(Mandatory = $true)]
-        [ValidateCount(2, 2)]
+        [ValidateCount(2, 16)]
         [string[]]$ClusterNodes,
         [Parameter(Mandatory = $true)]
         [string]$ClusterIP,
@@ -91,7 +96,7 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
         [string]$VolumeName = "CSV_S2D",
         [ValidateRange(1, 64)]
         [int]$VolumeCount = 1,
-        [ValidateSet("Mirror","NestedMirror","NestedParity")]
+        [ValidateSet("Mirror","NestedMirror","NestedParity","DualParity","MirrorAcceleratedParity")]
         [string[]]$Resiliency = @("Mirror"),
         [ValidateRange(10, 30)]
         [int]$NestedMirrorPercent = 20,
@@ -127,6 +132,15 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
     }
     if ($Resiliency.Count -gt 1 -and $Resiliency.Count -ne $VolumeCount) {
         throw "Resiliency count ($($Resiliency.Count)) must be 1 or match VolumeCount ($VolumeCount)."
+    }
+    $nodeCount = $ClusterNodes.Count
+    foreach ($r in $Resiliency) {
+        if (($r -eq "NestedMirror" -or $r -eq "NestedParity") -and $nodeCount -ne 2) {
+            throw "$r requires exactly 2 nodes (got $nodeCount). Use Mirror on 3+ nodes, DualParity or MirrorAcceleratedParity on 4+."
+        }
+        if (($r -eq "DualParity" -or $r -eq "MirrorAcceleratedParity") -and $nodeCount -lt 4) {
+            throw "$r requires at least 4 nodes (got $nodeCount). Use Mirror on 2-3 nodes, NestedMirror or NestedParity on 2."
+        }
     }
 
     # Pre-mutation checks: everything verifiable without changing state.
@@ -225,22 +239,34 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
             $reserveBytes = Get-S2DCapacityReserve -PoolFreeBytes $free -NodeCount $ClusterNodes.Count -ReservePercent $CapacityReservePercent -Drives $poolDisks
         }
         $plannedBase = if ($free -gt $reserveBytes) { $free - $reserveBytes } else { [uint64]0 }
-        $parityEff = Get-S2DVolumeEfficiency -Resiliency NestedParity -CapacityDrivesPerServer $drivesPerServer -NestedMirrorPercent $NestedMirrorPercent
-        $planLine = "Free: {0} GiB | Reserve: {1} GiB | Usable -> Mirror: {2} GiB, NestedMirror: {3} GiB, NestedParity ({4}% mirror): {5} GiB" -f ([math]::Round($free / 1GB, 2)), ([math]::Round($reserveBytes / 1GB, 2)), ([math]::Round($plannedBase * 0.5 / 1GB, 2)), ([math]::Round($plannedBase * 0.25 / 1GB, 2)), $NestedMirrorPercent, ([math]::Round($plannedBase * $parityEff / 1GB, 2))
+        $allFlash = $capacityMedia -notcontains "HDD"
+        $mirrorEff = Get-S2DVolumeEfficiency -Resiliency Mirror -CapacityDrivesPerServer $drivesPerServer -NodeCount $nodeCount
+        $planParts = @(("Mirror: {0} GiB" -f ([math]::Round($plannedBase * $mirrorEff / 1GB, 2))))
+        if ($nodeCount -eq 2) {
+            $parityEff = Get-S2DVolumeEfficiency -Resiliency NestedParity -CapacityDrivesPerServer $drivesPerServer -NestedMirrorPercent $NestedMirrorPercent -NodeCount $nodeCount
+            $planParts += ("NestedMirror: {0} GiB" -f ([math]::Round($plannedBase * 0.25 / 1GB, 2)))
+            $planParts += ("NestedParity ({0}% mirror): {1} GiB" -f $NestedMirrorPercent, ([math]::Round($plannedBase * $parityEff / 1GB, 2)))
+        } elseif ($nodeCount -ge 4) {
+            $dpEff = Get-S2DVolumeEfficiency -Resiliency DualParity -CapacityDrivesPerServer $drivesPerServer -NodeCount $nodeCount -AllFlash:$allFlash
+            $mapEff = Get-S2DVolumeEfficiency -Resiliency MirrorAcceleratedParity -CapacityDrivesPerServer $drivesPerServer -NestedMirrorPercent $NestedMirrorPercent -NodeCount $nodeCount -AllFlash:$allFlash
+            $planParts += ("DualParity: {0} GiB" -f ([math]::Round($plannedBase * $dpEff / 1GB, 2)))
+            $planParts += ("MirrorAcceleratedParity ({0}% mirror): {1} GiB" -f $NestedMirrorPercent, ([math]::Round($plannedBase * $mapEff / 1GB, 2)))
+        }
+        $planLine = "Free: {0} GiB | Reserve: {1} GiB | Usable -> {2}" -f ([math]::Round($free / 1GB, 2)), ([math]::Round($reserveBytes / 1GB, 2)), ($planParts -join ", ")
         Write-Host $planLine -ForegroundColor Yellow
         Write-S2DLog $planLine
 
         $volumeSizes = @()
         if ($SizingMode -eq "Auto") {
             for ($s = 0; $s -lt $VolumeCount; $s++) {
-                $volEff = Get-S2DVolumeEfficiency -Resiliency $volumeResiliency[$s] -CapacityDrivesPerServer $drivesPerServer -NestedMirrorPercent $NestedMirrorPercent
+                $volEff = Get-S2DVolumeEfficiency -Resiliency $volumeResiliency[$s] -CapacityDrivesPerServer $drivesPerServer -NestedMirrorPercent $NestedMirrorPercent -NodeCount $nodeCount -AllFlash:$allFlash
                 $volumeSizes += [uint64][math]::Floor(($plannedBase / $VolumeCount) * $volEff)
                 if ($volumeSizes[$s] -le 0) { throw "Insufficient capacity left to create volume $($s + 1) of $VolumeCount ($($volumeResiliency[$s]))." }
             }
         } else {
             $footprintTotal = [uint64]0
             for ($s = 0; $s -lt $VolumeCount; $s++) {
-                $volEff = Get-S2DVolumeEfficiency -Resiliency $volumeResiliency[$s] -CapacityDrivesPerServer $drivesPerServer -NestedMirrorPercent $NestedMirrorPercent
+                $volEff = Get-S2DVolumeEfficiency -Resiliency $volumeResiliency[$s] -CapacityDrivesPerServer $drivesPerServer -NestedMirrorPercent $NestedMirrorPercent -NodeCount $nodeCount -AllFlash:$allFlash
                 $footprintTotal += [uint64][math]::Ceiling($VolumeSizeBytes / $volEff)
                 $volumeSizes += $VolumeSizeBytes
             }
@@ -275,21 +301,31 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
         $mirrorTemplateMedia = @()
         $nestedMirrorTemplateMedia = @()
         $nestedParityTemplateMedia = @()
+        $dualParityTemplateMedia = @()
         for ($m = 0; $m -lt $VolumeCount; $m++) {
             if ($volumeResiliency[$m] -eq "Mirror") {
                 if ($pinnedFlags[$m]) { $mirrorTemplateMedia += $volumeTierMedia[$m] }
-            } else {
+            } elseif ($volumeResiliency[$m] -eq "NestedMirror") {
                 $nestedMirrorTemplateMedia += $volumeTierMedia[$m]
-                if ($volumeResiliency[$m] -eq "NestedParity") { $nestedParityTemplateMedia += $volumeTierMedia[$m] }
+            } elseif ($volumeResiliency[$m] -eq "NestedParity") {
+                $nestedMirrorTemplateMedia += $volumeTierMedia[$m]
+                $nestedParityTemplateMedia += $volumeTierMedia[$m]
+            } elseif ($volumeResiliency[$m] -eq "DualParity") {
+                $dualParityTemplateMedia += $volumeTierMedia[$m]
+            } else {
+                $mirrorTemplateMedia += $volumeTierMedia[$m]
+                $dualParityTemplateMedia += $volumeTierMedia[$m]
             }
         }
         $mirrorTemplateMedia = @($mirrorTemplateMedia | Select-Object -Unique)
         $nestedMirrorTemplateMedia = @($nestedMirrorTemplateMedia | Select-Object -Unique)
         $nestedParityTemplateMedia = @($nestedParityTemplateMedia | Select-Object -Unique)
+        $dualParityTemplateMedia = @($dualParityTemplateMedia | Select-Object -Unique)
+        $mirrorCopies = if ($nodeCount -le 2) { 2 } else { 3 }
         foreach ($tierMedia in $mirrorTemplateMedia) {
             $templateName = "MirrorOn$TierMedia"
             if ($templateName -notin $existingTiers) {
-                New-StorageTier -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $templateName -ResiliencySettingName Mirror -MediaType $tierMedia -NumberOfDataCopies 2
+                New-StorageTier -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $templateName -ResiliencySettingName Mirror -MediaType $tierMedia -NumberOfDataCopies $mirrorCopies
             }
         }
         foreach ($tierMedia in $nestedMirrorTemplateMedia) {
@@ -313,6 +349,22 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
                     ColumnIsolation         = "PhysicalDisk"
                 }
                 New-StorageTier @paritySplat
+            }
+        }
+        foreach ($tierMedia in $dualParityTemplateMedia) {
+            $dualTierName = "DualParityOn$TierMedia"
+            if ($dualTierName -notin $existingTiers) {
+                $dualSplat = @{
+                    StoragePoolFriendlyName = "S2D on $ClusterName"
+                    FriendlyName            = $dualTierName
+                    ResiliencySettingName   = "Parity"
+                    MediaType               = $tierMedia
+                    PhysicalDiskRedundancy  = 2
+                    NumberOfGroups          = 1
+                    FaultDomainAwareness    = "StorageScaleUnit"
+                    ColumnIsolation         = "PhysicalDisk"
+                }
+                New-StorageTier @dualSplat
             }
         }
 
@@ -359,6 +411,24 @@ New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "1
                     FileSystem               = "CSVFS_ReFS"
                     StorageTierFriendlyNames = @("NestedMirrorOn$volMedia")
                     StorageTierSizes         = @($volumeSizes[$idx])
+                }
+            } elseif ($volRes -eq "DualParity") {
+                $volumeSplat = @{
+                    StoragePoolFriendlyName  = "S2D on $ClusterName"
+                    FriendlyName             = $name
+                    FileSystem               = "CSVFS_ReFS"
+                    StorageTierFriendlyNames = @("DualParityOn$volMedia")
+                    StorageTierSizes         = @($volumeSizes[$idx])
+                }
+            } elseif ($volRes -eq "MirrorAcceleratedParity") {
+                $mirrorPart = [uint64][math]::Floor($volumeSizes[$idx] * ($NestedMirrorPercent / 100.0))
+                $parityPart = $volumeSizes[$idx] - $mirrorPart
+                $volumeSplat = @{
+                    StoragePoolFriendlyName  = "S2D on $ClusterName"
+                    FriendlyName             = $name
+                    FileSystem               = "CSVFS_ReFS"
+                    StorageTierFriendlyNames = @("MirrorOn$volMedia", "DualParityOn$volMedia")
+                    StorageTierSizes         = @($mirrorPart, $parityPart)
                 }
             } else {
                 $mirrorPart = [uint64][math]::Floor($volumeSizes[$idx] * ($NestedMirrorPercent / 100.0))

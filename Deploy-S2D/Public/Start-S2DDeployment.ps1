@@ -9,7 +9,7 @@ callers keep working; new callers should use the two phase functions directly.
 .PARAMETER ClusterName
 Cluster name (Cluster phase).
 .PARAMETER ClusterNodes
-Cluster node names (Cluster phase).
+Cluster node names, 2 to 16 (Cluster phase).
 .PARAMETER ClusterIP
 Cluster static IP (Cluster phase).
 .PARAMETER MgmtAdapters
@@ -41,10 +41,12 @@ CSV friendly name (prefix when VolumeCount > 1). Default CSV_S2D.
 .PARAMETER VolumeCount
 Number of CSV volumes (1-64). Default 1.
 .PARAMETER Resiliency
-Mirror (default), NestedMirror, or NestedParity. A single value
+Mirror (default), NestedMirror, NestedParity (2 nodes), DualParity or
+MirrorAcceleratedParity (4+ nodes). A single value
 broadcasts; pass one per volume to mix.
 .PARAMETER NestedMirrorPercent
-Fast-tier mirror share for NestedParity. Default 20.
+Fast-tier mirror share for NestedParity and MirrorAcceleratedParity.
+Default 20.
 .PARAMETER StorageTier
 Capacity media per volume. Auto (default), SSD, or HDD (HDD = SAS spinning
 disks). A single value
@@ -90,7 +92,7 @@ Start-S2DDeployment -ClusterName "CL-S2D" -ClusterNodes "S2D-01","S2D-02" -Clust
         [string]$FileShareWitness = "",
         [string]$VolumeName = "CSV_S2D",
         [int]$VolumeCount = 1,
-        [ValidateSet("Mirror","NestedMirror","NestedParity")]
+        [ValidateSet("Mirror","NestedMirror","NestedParity","DualParity","MirrorAcceleratedParity")]
         [string[]]$Resiliency = @("Mirror"),
         [int]$NestedMirrorPercent = 20,
         [ValidateSet("Auto","SSD","HDD")]

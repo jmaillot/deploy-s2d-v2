@@ -32,6 +32,20 @@ Describe 'New-S2DCluster boundaries' {
         { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -VolumeCount 2 -Resiliency Mirror,NestedParity,Mirror -ErrorAction Stop } |
             Should -Throw '*match VolumeCount*'
     }
+
+    It 'throws when nested resiliency is used off 2 nodes' {
+        { New-S2DCluster -ClusterName X -ClusterNodes Y,Z,W -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -Resiliency NestedParity -ErrorAction Stop } |
+            Should -Throw '*exactly 2 nodes*'
+        { New-S2DCluster -ClusterName X -ClusterNodes Y,Z,W -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -Resiliency NestedMirror -ErrorAction Stop } |
+            Should -Throw '*exactly 2 nodes*'
+    }
+
+    It 'throws when dual-parity resiliency is used below 4 nodes' {
+        { New-S2DCluster -ClusterName X -ClusterNodes Y,Z -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -Resiliency DualParity -ErrorAction Stop } |
+            Should -Throw '*at least 4 nodes*'
+        { New-S2DCluster -ClusterName X -ClusterNodes Y,Z,W -ClusterIP 192.168.1.240 -FileShareWitness '\\S\W$' -Resiliency MirrorAcceleratedParity -ErrorAction Stop } |
+            Should -Throw '*at least 4 nodes*'
+    }
 }
 
 Describe 'Start-S2DNodePrep boundaries' {

@@ -31,6 +31,46 @@ Describe 'Get-S2DVolumeEfficiency' {
     It 'clamps drive counts below the table' {
         Get-S2DVolumeEfficiency -Resiliency NestedParity -CapacityDrivesPerServer 2 -NestedMirrorPercent 20 | Should -Be 0.341
     }
+
+    It 'rates mirror 3-way on 3+ nodes' {
+        Get-S2DVolumeEfficiency -Resiliency Mirror -NodeCount 3 | Should -Be (1.0 / 3.0)
+        Get-S2DVolumeEfficiency -Resiliency Mirror -NodeCount 16 | Should -Be (1.0 / 3.0)
+    }
+
+    It 'rejects nested resiliency off 2 nodes' {
+        { Get-S2DVolumeEfficiency -Resiliency NestedMirror -NodeCount 3 -ErrorAction Stop } | Should -Throw
+        { Get-S2DVolumeEfficiency -Resiliency NestedParity -NodeCount 4 -NestedMirrorPercent 20 -ErrorAction Stop } | Should -Throw
+    }
+
+    It 'looks up dual parity by node count (hybrid column)' {
+        Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 4 | Should -Be 0.5
+        Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 6 | Should -Be 0.5
+        Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 7 | Should -Be 0.667
+        Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 11 | Should -Be 0.667
+        Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 12 | Should -Be 0.727
+        Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 16 | Should -Be 0.727
+    }
+
+    It 'looks up dual parity by node count (all-flash column)' {
+        Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 4 -AllFlash | Should -Be 0.5
+        Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 8 -AllFlash | Should -Be 0.667
+        Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 9 -AllFlash | Should -Be 0.75
+        Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 15 -AllFlash | Should -Be 0.75
+        Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 16 -AllFlash | Should -Be 0.8
+    }
+
+    It 'rejects dual parity below 4 nodes' {
+        { Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 2 -ErrorAction Stop } | Should -Throw
+        { Get-S2DVolumeEfficiency -Resiliency DualParity -NodeCount 3 -ErrorAction Stop } | Should -Throw
+        { Get-S2DVolumeEfficiency -Resiliency MirrorAcceleratedParity -NodeCount 3 -ErrorAction Stop } | Should -Throw
+    }
+
+    It 'blends mirror and parity for mirror-accelerated parity' {
+        $eff = Get-S2DVolumeEfficiency -Resiliency MirrorAcceleratedParity -NodeCount 4 -NestedMirrorPercent 20
+        [math]::Round($eff, 4) | Should -Be ([math]::Round(0.2 * (1.0 / 3.0) + 0.8 * 0.5, 4))
+        $flash = Get-S2DVolumeEfficiency -Resiliency MirrorAcceleratedParity -NodeCount 16 -NestedMirrorPercent 20 -AllFlash
+        [math]::Round($flash, 4) | Should -Be ([math]::Round(0.2 * (1.0 / 3.0) + 0.8 * 0.8, 4))
+    }
 }
 
 Describe 'Get-S2DCapacityMedia' {
