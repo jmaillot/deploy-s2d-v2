@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>S2D Capacity Planner — 2-node Storage Spaces Direct</title>
-<meta name="description" content="Plan disks and usable capacity for a 2-node Storage Spaces Direct cluster: SSD+SAS, NVMe+SSD+SAS, or all-flash. Same math as the Deploy-S2D module.">
-<link rel="stylesheet" href="styles.css?v=4">
+<title>S2D Capacity Planner — 2 to 16-node Storage Spaces Direct</title>
+<meta name="description" content="Plan disks and usable capacity for a 2 to 16-node Storage Spaces Direct cluster: SSD+SAS, NVMe+SSD+SAS, or all-flash. Same math as the Deploy-S2D module.">
+<link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
 <header>
@@ -30,13 +30,15 @@
       <div class="card">
         <h2 data-i18n="cluster"></h2>
         <label><span data-i18n="nodes"></span>
-          <input type="number" id="g-nodes" value="2" min="2" max="16" step="1">
+          <input type="number" id="g-nodes" value="2" min="2" max="16" step="1" oninput="syncResiliency('g')">
         </label>
         <label><span data-i18n="resiliency"></span>
           <select id="g-res" onchange="resChanged()">
             <option value="Mirror" data-i18n="resM"></option>
             <option value="NestedMirror" data-i18n="resNM"></option>
             <option value="NestedParity" data-i18n="resNP"></option>
+            <option value="DualParity" data-i18n="resDP"></option>
+            <option value="MirrorAcceleratedParity" data-i18n="resMAP"></option>
           </select>
         </label>
         <label><span data-i18n="mirrorShare"></span>: <span id="g-mirrorpct-val">20</span>%
@@ -117,6 +119,10 @@
         <tr><td data-i18n="reserveRow"></td><td id="g-reserve">–</td></tr>
       </table>
       <ul class="warnings" id="g-warnings"></ul>
+      <div id="g-fabric" hidden>
+        <h3 data-i18n="fabricTitle"></h3>
+        <div data-i18n-html="fabricBody"></div>
+      </div>
       <h3 data-i18n="exportTitle"></h3>
       <label class="check"><input type="checkbox" id="g-usefullpool" onchange="refreshCommand()"> <span data-i18n="useFullPool"></span></label>
       <pre id="g-cmd"></pre>
@@ -133,13 +139,15 @@
           <input type="number" id="n-target" value="10" min="0.5" step="0.5">
         </label>
         <label><span data-i18n="nodes"></span>
-          <input type="number" id="n-nodes" value="2" min="2" max="16" step="1">
+          <input type="number" id="n-nodes" value="2" min="2" max="16" step="1" oninput="syncResiliency('n')">
         </label>
         <label><span data-i18n="resiliency"></span>
           <select id="n-res">
             <option value="Mirror" data-i18n="resMs"></option>
             <option value="NestedMirror" data-i18n="resNMs"></option>
             <option value="NestedParity" data-i18n="resNPs"></option>
+            <option value="DualParity" data-i18n="resDPs"></option>
+            <option value="MirrorAcceleratedParity" data-i18n="resMAPs"></option>
           </select>
         </label>
         <label><span data-i18n="capDrive"></span>
@@ -171,6 +179,10 @@
         <tr><td data-i18n="cacheToAdd"></td><td id="n-cache">–</td></tr>
       </table>
       <ul class="warnings" id="n-warnings"></ul>
+      <div id="n-fabric" hidden>
+        <h3 data-i18n="fabricTitle"></h3>
+        <div data-i18n-html="fabricBody"></div>
+      </div>
     </div>
   </section>
 </main>
@@ -179,12 +191,12 @@
   <div class="card">
     <h2 data-i18n="perfTitle"></h2>
     <table class="breakdown perf-table">
-      <tr><th></th><th>Mirror (50%)</th><th data-i18n="perfNestedM"></th><th data-i18n="perfNestedP"></th></tr>
-      <tr><td data-i18n="perfRead"></td><td data-i18n="perfReadM"></td><td data-i18n="perfReadNM"></td><td data-i18n="perfReadNP"></td></tr>
-      <tr><td data-i18n="perfWrite"></td><td data-i18n="perfWriteM"></td><td data-i18n="perfWriteNM"></td><td data-i18n="perfWriteNP"></td></tr>
-      <tr><td data-i18n="perfAmp"></td><td>2×</td><td>4×</td><td data-i18n="perfAmpNP"></td></tr>
-      <tr><td data-i18n="perfSurvives"></td><td data-i18n="perfSurvivesM"></td><td data-i18n="perfSurvivesN"></td><td data-i18n="perfSurvivesN"></td></tr>
-      <tr><td data-i18n="perfBest"></td><td data-i18n="perfBestM"></td><td data-i18n="perfBestNM"></td><td data-i18n="perfBestNP"></td></tr>
+      <tr><th></th><th data-i18n="perfM"></th><th data-i18n="perfNestedM"></th><th data-i18n="perfNestedP"></th><th data-i18n="perfDP"></th></tr>
+      <tr><td data-i18n="perfRead"></td><td data-i18n="perfReadM"></td><td data-i18n="perfReadNM"></td><td data-i18n="perfReadNP"></td><td data-i18n="perfReadDP"></td></tr>
+      <tr><td data-i18n="perfWrite"></td><td data-i18n="perfWriteM"></td><td data-i18n="perfWriteNM"></td><td data-i18n="perfWriteNP"></td><td data-i18n="perfWriteDP"></td></tr>
+      <tr><td data-i18n="perfAmp"></td><td>2×</td><td>4×</td><td data-i18n="perfAmpNP"></td><td data-i18n="perfAmpDP"></td></tr>
+      <tr><td data-i18n="perfSurvives"></td><td data-i18n="perfSurvivesM"></td><td data-i18n="perfSurvivesN"></td><td data-i18n="perfSurvivesN"></td><td data-i18n="perfSurvivesN"></td></tr>
+      <tr><td data-i18n="perfBest"></td><td data-i18n="perfBestM"></td><td data-i18n="perfBestNM"></td><td data-i18n="perfBestNP"></td><td data-i18n="perfBestDP"></td></tr>
     </table>
     <ul class="takeaways">
       <li data-i18n="takeaway1"></li>
@@ -198,6 +210,6 @@
   <p><a href="https://github.com/jmaillot/deploy-s2d-v2">deploy-s2d-v2</a></p>
 </footer>
 
-<script src="calculator.js?v=4"></script>
+<script src="calculator.js?v=5"></script>
 </body>
 </html>

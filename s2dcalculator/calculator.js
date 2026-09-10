@@ -6,21 +6,25 @@
 /* ---------- i18n ---------- */
 const I18N = {
 en: {
-  title: "S2D Capacity Planner — 2-node Storage Spaces Direct",
-  sub1: "How many disks of which type for the usable capacity you want — 2-node Storage Spaces Direct (Windows Server 2025). Same math as the",
+  title: "S2D Capacity Planner — 2 to 16-node Storage Spaces Direct",
+  sub1: "How many disks of which type for the usable capacity you want — 2 to 16-node Storage Spaces Direct (Windows Server 2025). Same math as the",
   sub2: "module.",
   tabGet: "What do I get?",
   tabNeed: "What do I need?",
   cluster: "Cluster",
-  nodes: "Nodes",
+  nodes: "Nodes (2–16)",
   resiliency: "Resiliency",
-  resM: "Mirror — 50% usable, survives 1 failure",
-  resNM: "Nested mirror — 25% usable, survives 2 failures",
-  resNP: "Nested parity — ~35–40% usable, survives 2 failures",
-  resMs: "Mirror — 50%",
+  resM: "Mirror — 50% on 2 nodes, 33% on 3+",
+  resNM: "Nested mirror — 25% usable, survives 2 failures (2 nodes only)",
+  resNP: "Nested parity — ~35–40% usable, survives 2 failures (2 nodes only)",
+  resDP: "Dual parity — 50–80% usable, survives 2 failures (4+ nodes)",
+  resMAP: "Mirror-accelerated parity — mirror + dual parity blend (4+ nodes)",
+  resMs: "Mirror — 50%/33%",
   resNMs: "Nested mirror — 25%",
   resNPs: "Nested parity — ~35–40%",
-  mirrorShare: "Mirror share for nested parity",
+  resDPs: "Dual parity — 50–80%",
+  resMAPs: "Mirror-accelerated parity",
+  mirrorShare: "Mirror share for nested / mixed parity",
   reservePct: "Reserve %",
   volumes: "Volumes (usable split evenly)",
   drivesPerServer: "Drives per server",
@@ -63,12 +67,18 @@ en: {
   cacheSSDFull: "None — SSD Full Cache already covers this layout.",
   cacheNVMeReq: "2× NVMe ≥ {per}/server (≥ {total}/server, ~5% of SSD) — required, SSD is capacity here",
   perfTitle: "Performance cheat sheet",
+  perfM: "Mirror (50% / 33%)",
+  perfDP: "Dual parity (50–80%)",
   perfNestedM: "Nested mirror (25%)", perfNestedP: "Nested parity (~35–40%)",
   perfRead: "Read latency", perfReadM: "Lowest", perfReadNM: "Lowest (any of 4 copies)", perfReadNP: "Fast recent, slower aged",
+  perfReadDP: "Slower (parity decode)",
   perfWrite: "Sustained random writes", perfWriteM: "Highest", perfWriteNM: "Highest", perfWriteNP: "Lowest",
+  perfWriteDP: "Lowest (parity encode + CPU)",
   perfAmp: "Backend writes / guest write", perfAmpNP: "~1.2–2× + CPU",
-  perfSurvives: "Survives", perfSurvivesM: "1 failure", perfSurvivesN: "2 failures",
+  perfAmpDP: "~2× + CPU",
+  perfSurvives: "Survives", perfSurvivesM: "1–2 failures (2-way / 3-way)", perfSurvivesN: "2 failures",
   perfBest: "Best for", perfBestM: "Hot SSD volumes", perfBestNM: "Max safety", perfBestNP: "Cold/bulk SAS volumes",
+  perfBestDP: "Cold/bulk at scale (4+ nodes)",
   takeaway1: "Size the parity mirror share to your biggest single burst (daily backup + margin), not the average — overflowing it drops throughput until destaging catches up.",
   takeaway2: "An SSD cache flatters SAS parity: random writes coalesce in SSD and destage sequentially. Mirror-on-SSD + parity-on-SAS is the sweet spot.",
   footer: "Math mirrors <code>Get-S2DVolumeEfficiency</code> / <code>Get-S2DCapacityReserve</code> (1 TB = 1000⁴ bytes, decimal like vendors). Verify with <code>-WhatIf</code> before deploying.",
@@ -79,6 +89,11 @@ en: {
   warn400: "Over 400 TB per server — resync after reboot/update takes very long. Microsoft recommends staying near 400 TB/server.",
   warn64vol: "Per-volume size exceeds the 64 TB Microsoft recommendation (10 TB for VSS/Volsnap backups) — raise the volume count.",
   tipNested: "Tip: for production 2-node clusters Microsoft recommends nested resiliency (survives 2 failures instead of 1).",
+  tipDP: "Tip: on 4+ nodes dual parity gives 2-failure safety at 50–80% efficiency — keep hot data on mirror volumes.",
+  warn3quorum: "3 nodes: losing any 2 nodes loses pool quorum and takes volumes offline — plan the witness and maintenance windows accordingly.",
+  fabricWarn: "3+ nodes need switched fabrics — direct-connect cables only work at 2 nodes. See the fabric guide below.",
+  fabricTitle: "Switched fabric guide (3+ nodes)",
+  fabricBody: "<ul><li>One switch per fabric minimum (StorageA, StorageB, LiveMig) — two per fabric for HA. Every node connects to every fabric.</li><li>End to end per fabric: jumbo MTU on NICs, switch ports and VLANs; one dedicated subnet + VLAN per fabric.</li><li>RoCE needs PFC/DCB on the switch ports (iWARP skips DCB). Verify RDMA end to end before deploying.</li><li>10 Gbps or faster everywhere, same speed on all links; check NIC firmware/drivers against your vendor matrix.</li><li>The module configures each node identically (IPs, RDMA, QoS) — the switches are the only new infrastructure.</li></ul>",
   tipCacheAuto: "Hot data is served from the SSD read+write cache automatically — size it to the active working set.",
   warnVolsNodes: "Fewer volumes than nodes — use at least 1 volume per node so ownership distributes.",
   errTooBig: "Even 48 drives/server of this size cannot reach the target — use bigger drives or more nodes.",
@@ -92,21 +107,25 @@ en: {
   cmdEditNote: "Replace identity values, then run with -WhatIf first."
 },
 fr: {
-  title: "Planificateur de capacité S2D — Storage Spaces Direct à 2 nœuds",
-  sub1: "Combien de disques de quel type pour la capacité utile voulue — Storage Spaces Direct à 2 nœuds (Windows Server 2025). Mêmes calculs que le",
+  title: "Planificateur de capacité S2D — Storage Spaces Direct de 2 à 16 nœuds",
+  sub1: "Combien de disques de quel type pour la capacité utile voulue — Storage Spaces Direct de 2 à 16 nœuds (Windows Server 2025). Mêmes calculs que le",
   sub2: "module.",
   tabGet: "Qu'est-ce que j'obtiens ?",
   tabNeed: "De quoi ai-je besoin ?",
   cluster: "Cluster",
-  nodes: "Nœuds",
+  nodes: "Nœuds (2–16)",
   resiliency: "Résilience",
-  resM: "Mirror — 50 % utiles, survit à 1 panne",
-  resNM: "Miroir imbriqué — 25 % utiles, survit à 2 pannes",
-  resNP: "Parité imbriquée — ~35–40 % utiles, survit à 2 pannes",
-  resMs: "Mirror — 50 %",
+  resM: "Mirror — 50 % à 2 nœuds, 33 % à 3+",
+  resNM: "Miroir imbriqué — 25 % utiles, survit à 2 pannes (2 nœuds)",
+  resNP: "Parité imbriquée — ~35–40 % utiles, survit à 2 pannes (2 nœuds)",
+  resDP: "Parité double — 50–80 % utiles, survit à 2 pannes (4+ nœuds)",
+  resMAP: "Parité accélérée par miroir — mixte miroir + parité double (4+ nœuds)",
+  resMs: "Mirror — 50 %/33 %",
   resNMs: "Miroir imbriqué — 25 %",
   resNPs: "Parité imbriquée — ~35–40 %",
-  mirrorShare: "Part miroir pour la parité imbriquée",
+  resDPs: "Parité double — 50–80 %",
+  resMAPs: "Parité accélérée par miroir",
+  mirrorShare: "Part miroir pour parité imbriquée / mixte",
   reservePct: "Réserve %",
   volumes: "Volumes (utile répartie)",
   drivesPerServer: "Disques par serveur",
@@ -149,12 +168,18 @@ fr: {
   cacheSSDFull: "Aucun — cache SSD Full Cache déjà en place.",
   cacheNVMeReq: "2× NVMe ≥ {per}/serveur (≥ {total}/serveur, ~5 % du SSD) — obligatoire, le SSD est capacitif ici",
   perfTitle: "Aide-mémoire performances",
+  perfM: "Mirror (50 % / 33 %)",
+  perfDP: "Parité double (50–80 %)",
   perfNestedM: "Miroir imbriqué (25 %)", perfNestedP: "Parité imbriquée (~35–40 %)",
   perfRead: "Latence en lecture", perfReadM: "La plus basse", perfReadNM: "La plus basse (n'importe laquelle des 4 copies)", perfReadNP: "Rapide pour les données récentes, plus lent pour les anciennes",
+  perfReadDP: "Plus lent (décodage parité)",
   perfWrite: "Écritures aléatoires soutenues", perfWriteM: "Max", perfWriteNM: "Max", perfWriteNP: "Min",
+  perfWriteDP: "Min (encodage parité + CPU)",
   perfAmp: "Écritures internes par écriture", perfAmpNP: "~1,2–2× + CPU",
-  perfSurvives: "Survit à", perfSurvivesM: "1 panne", perfSurvivesN: "2 pannes",
+  perfAmpDP: "~2× + CPU",
+  perfSurvives: "Survit à", perfSurvivesM: "1–2 pannes (2-way / 3-way)", perfSurvivesN: "2 pannes",
   perfBest: "Idéal pour", perfBestM: "Volumes chauds sur SSD", perfBestNM: "Sécurité maximale", perfBestNP: "Volumes froids sur SAS",
+  perfBestDP: "Froid/volumineux à l'échelle (4+ nœuds)",
   takeaway1: "Dimensionnez le partage miroir/parité en fonction de votre plus gros pic ponctuel (sauvegarde quotidienne + marge), pas de la moyenne — le saturer fait chuter le débit jusqu'à ce que le destaging rattrape son retard.",
   takeaway2: "Un cache SSD sublime la parité SAS : les écritures aléatoires se regroupent sur le SSD puis sont destagées de façon séquentielle. Miroir sur SSD + parité sur SAS, c'est la configuration idéale.",
   footer: "Calculs identiques à <code>Get-S2DVolumeEfficiency</code> / <code>Get-S2DCapacityReserve</code> (1 To = 1000⁴ octets, décimal comme les constructeurs). Vérifiez avec <code>-WhatIf</code> avant de déployer.",
@@ -165,6 +190,11 @@ fr: {
   warn400: "Plus de 400 To par serveur — la resync après redémarrage/MAJ est très longue. Microsoft recommande ~400 To/serveur.",
   warn64vol: "Taille par volume au-delà des 64 To Microsoft (10 To pour sauvegardes VSS/Volsnap) — augmentez le nombre de volumes.",
   tipNested: "Astuce : en production à 2 nœuds, Microsoft recommande la résilience imbriquée (2 pannes au lieu d'1).",
+  tipDP: "Astuce : à 4+ nœuds, la parité double donne 2 pannes à 50–80 % de rendement — gardez les données chaudes sur des volumes miroir.",
+  warn3quorum: "3 nœuds : la perte de 2 nœuds fait perdre le quorum du pool et coupe les volumes — prévoyez témoin et fenêtres de maintenance.",
+  fabricWarn: "3+ nœuds exigent des fabrics commutés — le direct-connect ne marche qu'à 2 nœuds. Voir le guide fabric ci-dessous.",
+  fabricTitle: "Guide fabric commuté (3+ nœuds)",
+  fabricBody: "<ul><li>Un switch par fabric minimum (StorageA, StorageB, LiveMig) — deux par fabric pour la HA. Chaque nœud est relié à chaque fabric.</li><li>De bout en bout par fabric : MTU jumbo sur cartes, ports switch et VLANs ; un sous-réseau + VLAN dédié par fabric.</li><li>RoCE exige PFC/DCB sur les ports switch (iWARP évite le DCB). Vérifiez le RDMA de bout en bout avant de déployer.</li><li>10 Gbps ou plus partout, même vitesse sur tous les liens ; vérifiez firmware/drivers des cartes (matrice constructeur).</li><li>Le module configure chaque nœud à l'identique (IP, RDMA, QoS) — les switches sont la seule infra en plus.</li></ul>",
   tipCacheAuto: "Les données chaudes sont servies depuis le cache SSD lecture/écriture automatiquement — dimensionnez-le pour l'ensemble de travail.",
   warnVolsNodes: "Moins de volumes que de nœuds — au moins 1 volume par nœud pour répartir la propriété.",
   errTooBig: "Même 48 disques/serveur de cette taille n'atteignent pas l'objectif — disques plus gros ou plus de nœuds.",
@@ -212,6 +242,8 @@ function applyLang() {
   document.getElementById("lang-fr").classList.toggle("active", LANG === "fr");
   updateNeedSizes();
   syncMirrorSlider();
+  syncResiliency("g");
+  syncResiliency("n");
   if (!document.getElementById("g-results").hidden) calcGet();
   if (!document.getElementById("n-results").hidden) calcNeed();
 }
@@ -226,9 +258,24 @@ const PARITY_TABLE = {
   7: { 10: 0.400, 20: 0.375, 30: 0.353 }
 };
 
-function efficiency(resiliency, drivesPerServer, mirrorPct) {
-  if (resiliency === "Mirror") return 0.5;
+/* Dual-parity layout: nodes -> efficiency (Microsoft fault-tolerance tables). */
+const DUAL_HYBRID = { 4: 0.5, 5: 0.5, 6: 0.5, 7: 0.667, 8: 0.667, 9: 0.667, 10: 0.667, 11: 0.667, 12: 0.727, 13: 0.727, 14: 0.727, 15: 0.727, 16: 0.727 };
+const DUAL_FLASH = { 4: 0.5, 5: 0.5, 6: 0.5, 7: 0.667, 8: 0.667, 9: 0.75, 10: 0.75, 11: 0.75, 12: 0.75, 13: 0.75, 14: 0.75, 15: 0.75, 16: 0.8 };
+
+function dualEfficiency(nodes, allFlash) {
+  const n = Math.min(16, Math.max(4, Math.round(nodes)));
+  return (allFlash ? DUAL_FLASH : DUAL_HYBRID)[n];
+}
+
+function efficiency(resiliency, drivesPerServer, mirrorPct, nodes, allFlash) {
+  const n = Math.min(16, Math.max(2, Math.round(nodes || 2)));
+  if (resiliency === "Mirror") return n <= 2 ? 0.5 : 1 / 3;
   if (resiliency === "NestedMirror") return 0.25;
+  if (resiliency === "DualParity") return dualEfficiency(n, allFlash);
+  if (resiliency === "MirrorAcceleratedParity") {
+    const m = mirrorPct / 100;
+    return m * (1 / 3) + (1 - m) * dualEfficiency(n, allFlash);
+  }
   const key = Math.min(7, Math.max(4, drivesPerServer));
   const row = PARITY_TABLE[key];
   if (mirrorPct <= 10) return row[10];
@@ -275,10 +322,32 @@ function showMode(mode) {
   document.getElementById("tab-need").setAttribute("aria-selected", mode === "need");
 }
 
-/* The mirror-share slider only applies to nested parity — grey it out otherwise. */
+/* The mirror-share slider applies to nested parity and the 4+ mixed blend — grey it out otherwise. */
 function syncMirrorSlider() {
+  const res = document.getElementById("g-res").value;
   document.getElementById("g-mirrorpct").disabled =
-    document.getElementById("g-res").value !== "NestedParity";
+    res !== "NestedParity" && res !== "MirrorAcceleratedParity";
+}
+
+/* Resiliency options are node-gated (module boundary throws): nested needs
+   exactly 2 nodes, dual parity and the mixed blend need 4+. Disable the
+   invalid options for the current node count, falling back to Mirror. */
+function syncResiliency(mode) {
+  const nodes = Math.min(16, Math.max(2, Math.round(num(mode + "-nodes"))));
+  const sel = document.getElementById(mode + "-res");
+  const nestedOk = nodes === 2;
+  const dualOk = nodes >= 4;
+  for (const opt of sel.options) {
+    if (opt.value === "NestedMirror" || opt.value === "NestedParity") opt.disabled = !nestedOk;
+    if (opt.value === "DualParity" || opt.value === "MirrorAcceleratedParity") opt.disabled = !dualOk;
+  }
+  if (sel.selectedOptions.length && sel.selectedOptions[0].disabled) {
+    sel.value = "Mirror";
+  }
+  if (mode === "g") {
+    syncMirrorSlider();
+    refreshCommand();
+  }
 }
 
 function resChanged() {
@@ -367,14 +436,17 @@ function nvmeAdvice(drives, capMedia) {
 /* Build a copy-pasteable New-S2DCluster command from planner inputs. */
 function buildCommand() {
   const vols = Math.min(64, Math.max(1, Math.round(num("g-vols"))));
+  const nodes = Math.min(16, Math.max(2, Math.round(num("g-nodes"))));
   const res = document.getElementById("g-res").value;
   const mirrorPct = num("g-mirrorpct");
   const reservePct = num("g-reservepct");
   const useFull = document.getElementById("g-usefullpool").checked;
-  let cmd = 'New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes "HV1","HV2" -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\\\FILESERVER\\Witness$" -VolumeName "CSV"';
+  const nodeNames = [];
+  for (let i = 1; i <= nodes; i++) nodeNames.push('"HV' + i + '"');
+  let cmd = 'New-S2DCluster -ClusterName "ClusterPDL" -ClusterNodes ' + nodeNames.join(",") + ' -ClusterIP "192.168.1.240" -WitnessType "FileShare" -FileShareWitness "\\\\FILESERVER\\Witness$" -VolumeName "CSV"';
   if (vols > 1) cmd += " -VolumeCount " + vols;
   if (res !== "Mirror") cmd += " -Resiliency " + res;
-  if (res === "NestedParity" && mirrorPct !== 20) cmd += " -NestedMirrorPercent " + mirrorPct;
+  if ((res === "NestedParity" || res === "MirrorAcceleratedParity") && mirrorPct !== 20) cmd += " -NestedMirrorPercent " + mirrorPct;
   cmd += ' -SizingMode "Auto"';
   if (useFull) cmd += " -UseFullPool";
   else if (reservePct !== 20) cmd += " -CapacityReservePercent " + reservePct;
@@ -438,6 +510,12 @@ function checkLayout(nodes, drives, capMedia, capPerServer, rawTB) {
     items.push(["error", t("errNoCapacity")]);
     return items;
   }
+  if (nodes > 2) {
+    items.push(["warn", t("fabricWarn")]);
+  }
+  if (nodes === 3) {
+    items.push(["warn", t("warn3quorum")]);
+  }
   if (capPerServer < 4) {
     items.push(["warn", t("warnCapServer", { n: capPerServer })]);
   }
@@ -493,7 +571,8 @@ function calcGet() {
   }
 
   const reserve = reserveTB(rawTB, nodes, reservePct, drives);
-  const eff = efficiency(res, capPerServer, mirrorPct);
+  const allFlash = capMedia.length > 0 && !capMedia.includes("SAS");
+  const eff = efficiency(res, capPerServer, mirrorPct, nodes, allFlash);
   const usable = Math.max(0, rawTB - reserve) * eff;
 
   document.getElementById("g-usable").textContent = fmtNum(usable);
@@ -506,7 +585,8 @@ function calcGet() {
   document.getElementById("g-reserve").textContent = fmt(reserve);
 
   if (usable / vols > 64) items.push(["warn", t("warn64vol")]);
-  if (res === "Mirror") items.push(["ok", t("tipNested")]);
+  if (res === "Mirror" && nodes === 2) items.push(["ok", t("tipNested")]);
+  if (res === "Mirror" && nodes >= 4) items.push(["ok", t("tipDP")]);
   if (capMedia.length === 1 && capMedia[0] === "SAS") {
     items.push(["ok", t("tipCacheAuto")]);
   }
@@ -514,6 +594,7 @@ function calcGet() {
 
   warnList("g-warnings", items);
   document.getElementById("g-cmd").textContent = buildCommand();
+  document.getElementById("g-fabric").hidden = nodes <= 2;
   box.hidden = false;
 }
 
@@ -528,12 +609,13 @@ function calcNeed() {
 
   const box = document.getElementById("n-results");
   const items = [];
+  const allFlash = media !== "SAS";
   let found = -1, foundUsable = 0, foundRaw = 0, foundReserve = 0;
   for (let n = 4; n <= 48; n++) {
     const raw = n * size * nodes;
     const drives = [{ media, n, sizeTB: size }];
     const reserve = reserveTB(raw, nodes, reservePct, drives);
-    const usable = Math.max(0, raw - reserve) * efficiency(res, n, 20);
+    const usable = Math.max(0, raw - reserve) * efficiency(res, n, 20, nodes, allFlash);
     if (usable >= target) {
       found = n; foundUsable = usable; foundRaw = raw; foundReserve = reserve;
       break;
@@ -568,8 +650,11 @@ function calcNeed() {
   }
   if (found < 4) items.push(["warn", t("warnBelow4need")]);
   if (foundUsable > 64) items.push(["warn", t("warn64need")]);
+  if (nodes > 2) items.push(["warn", t("fabricWarn")]);
+  if (nodes === 3) items.push(["warn", t("warn3quorum")]);
   items.push(["ok", t("tipVerify")]);
   warnList("n-warnings", items);
+  document.getElementById("n-fabric").hidden = nodes <= 2;
   box.hidden = false;
 }
 
