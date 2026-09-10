@@ -1,0 +1,45 @@
+﻿TOPIC
+    about_Deploy-S2D
+
+SHORT DESCRIPTION
+    Déploiement Storage Spaces Direct en deux phases pour deux
+    nœuds Windows Server.
+
+LONG DESCRIPTION
+    Le module Deploy-S2D déploie un cluster Storage Spaces Direct (S2D) en
+    deux phases aux rayons d'action différents, d'où deux commandes
+    séparées :
+
+    Phase 1 - Start-S2DNodePrep (à exécuter EN LOCAL sur CHAQUE nœud, en admin) :
+        Valide le matériel (4+ cartes physiques, 10 Gbps + RDMA sur le
+        stockage et LiveMig, disques éligibles au pool), renomme les cartes,
+        définit le MTU jumbo et les IP stockage statiques, configure QoS/DCB
+        et RDMA, construit le vSwitch, désactive VMQ/RSC sur les membres
+        du team, attache le réseau de migration à chaud.
+
+    Phase 2 - New-S2DCluster (à exécuter UNE FOIS depuis un nœud) :
+        Valide, crée le cluster, définit le quorum, active S2D, crée
+        VolumeCount volumes CSV (ReFS) avec la résilience choisie
+        (Mirror/NestedMirror/NestedParity - une valeur pour tous les volumes,
+        ou une par volume), épingle les tiers par volume avec -StorageTier
+        (SSD,HDD côte à côte exige un cache NVMe), contraint SMB Multichannel,
+        renomme les réseaux. Le dimensionnement Auto répartit la capacité
+        utile selon l'efficacité ; Fixed valide les empreintes. Une réserve
+        au niveau des disques (ou -CapacityReservePercent, le plus grand
+        gagne) est conservée sauf -UseFullPool.
+
+    Start-S2DDeployment est un wrapper de compatibilité autour des deux.
+    Préférez les fonctions par phase. Scripts/ contient le runbook de
+    redémarrage sûr (Reboot-S2D.ps1) et le helper tiers
+    Clear-PhysicalDiskHealthData.ps1.
+
+EXAMPLES
+    PS> Start-S2DNodePrep -StorageAIP 192.168.200.1 -StorageBIP 192.168.201.1 -WhatIf
+    PS> New-S2DCluster -ClusterName CL -ClusterNodes HV1,HV2 -ClusterIP 192.168.1.240 -WhatIf
+    PS> New-S2DCluster -VolumeName CSV -VolumeCount 2 -StorageTier SSD,HDD -Resiliency Mirror,NestedParity -SizingMode Auto
+
+SEE ALSO
+    Start-S2DNodePrep
+    New-S2DCluster
+    Start-S2DDeployment
+    about_ShouldProcess
