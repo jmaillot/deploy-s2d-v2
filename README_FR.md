@@ -4,7 +4,8 @@
 
 Déploie un cluster Storage Spaces Direct (S2D) à deux nœuds sur Windows Server 2025 :
 préparation réseau/stockage par nœud, puis création du cluster avec quorum,
-activation S2D et volume CSV en miroir. PowerShell 5.1, français/anglais gérés.
+activation S2D et volume(s) CSV avec résilience au choix
+(Mirror/NestedMirror/NestedParity). PowerShell 5.1, français/anglais gérés.
 
 ## 0. Prérequis
 
@@ -293,7 +294,7 @@ Get-PhysicalDisk -UniqueId <id> | Clear-PhysicalDiskHealthData -Intent -Policy -
 
 ## Référence
 
-- Module `Deploy-S2D/` (v1.6.0, publiable) : `Start-S2DNodePrep`,
+- Module `Deploy-S2D/` (v2.0.0, publiable) : `Start-S2DNodePrep`,
   `New-S2DCluster`, `Start-S2DDeployment` (wrapper de compat). `Public/` = une
   fonction par fichier, `Private/` = helpers, `en-US/` = aide conceptuelle.
   `Scripts/` = runbook de redémarrage, helper tiers, one-shots. `archive/` = retiré.
@@ -315,6 +316,7 @@ Invoke-Pester -Path ./Tests -Output Detailed
 
 L'analyseur doit rapporter zéro `Error` (les avertissements s'affichent pour info ;
 `Write-Host` est exclu par conception — la sortie console, c'est l'UX de déploiement).
-Pester lance 15 tests : manifeste, contrats de paramètres, gardes aux limites, deux
-runs NodePrep mockés. GitHub Actions lance les deux à chaque push/PR
+Pester couvre le manifeste, les contrats de paramètres, les gardes aux limites,
+les runs NodePrep mockés, la planification/dimensionnement des volumes et le
+runtime des volumes de cluster mocké. GitHub Actions lance les deux à chaque push/PR
 (`windows-latest`, PowerShell 5.1).

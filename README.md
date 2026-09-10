@@ -4,7 +4,8 @@
 
 Deploys a 2-node Storage Spaces Direct (S2D) cluster on Windows Server 2025:
 per-node network/storage prep, then one-shot cluster creation with quorum,
-S2D enablement, and a mirrored CSV volume. PowerShell 5.1, FR/EN locales.
+S2D enablement, and CSV volume(s) with selectable resiliency
+(Mirror/NestedMirror/NestedParity). PowerShell 5.1, FR/EN locales.
 
 ## 0. Prerequisites checklist
 
@@ -283,7 +284,7 @@ Get-PhysicalDisk -UniqueId <id> | Clear-PhysicalDiskHealthData -Intent -Policy -
 
 ## Reference
 
-- Module `Deploy-S2D/` (v1.6.0, shippable): `Start-S2DNodePrep`,
+- Module `Deploy-S2D/` (v2.0.0, shippable): `Start-S2DNodePrep`,
   `New-S2DCluster`, `Start-S2DDeployment` (back-compat wrapper). `Public/` = one
   function per file, `Private/` = helpers, `en-US/` = conceptual help.
   `Scripts/` = reboot runbook, vendored helper, one-offs. `archive/` = retired.
@@ -304,6 +305,7 @@ Invoke-Pester -Path ./Tests -Output Detailed
 ```
 
 Analyzer must report zero `Error`s (warnings print for info; `Write-Host` is
-excluded by design — console output is the deploy UX). Pester runs 15 tests:
-manifest, parameter contracts, boundary throws, two mocked NodePrep runs.
+excluded by design — console output is the deploy UX). Pester covers manifest,
+parameter contracts, boundary throws, mocked NodePrep runs, volume
+planning/sizing, and the mocked cluster-volume runtime.
 GitHub Actions runs both on every push/PR (`windows-latest`, PowerShell 5.1).
